@@ -8,7 +8,7 @@ import { ApplicationRecord, UserProfile } from '@/lib/db';
 export default function DashboardPage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [applications, setApplications] = useState<ApplicationRecord[]>([]);
-  const [activity, setActivity] = useState({ applicationsToday: 0, emailsSentToday: 0, dailyEmailLimit: 10 });
+  const [activity, setActivity] = useState({ applicationsToday: 0, emailsSentToday: 0, dailyEmailLimit: 50 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -16,10 +16,18 @@ export default function DashboardPage() {
       fetch('/api/profile').then(res => res.json()),
       fetch('/api/applications').then(res => res.json()),
       fetch('/api/emails').then(res => res.json()),
-    ]).then(([profileData, appData, emailData]) => {
+      fetch('/api/settings').then(res => res.json()),
+    ]).then(([profileData, appData, emailData, settingsData]) => {
       if (profileData.profile) setProfile(profileData.profile);
       if (appData.applications) setApplications(appData.applications);
-      if (emailData.activity) setActivity(emailData.activity);
+      
+      const customLimit = settingsData.settings?.dailyEmailLimit || emailData.activity?.dailyEmailLimit || 50;
+      if (emailData.activity) {
+        setActivity({
+          ...emailData.activity,
+          dailyEmailLimit: customLimit,
+        });
+      }
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
@@ -83,7 +91,7 @@ export default function DashboardPage() {
             <Send className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="text-3xl font-bold text-white">{activity.emailsSentToday} <span className="text-sm font-normal text-slate-400">/ {activity.dailyEmailLimit}</span></div>
-          <div className="text-xs text-emerald-400">{activity.dailyEmailLimit - activity.emailsSentToday} remaining email quota</div>
+          <div className="text-xs text-emerald-400">{Math.max(0, activity.dailyEmailLimit - activity.emailsSentToday)} remaining email quota</div>
         </div>
 
         <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-sm space-y-2">

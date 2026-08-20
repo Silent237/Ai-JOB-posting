@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { FileText, Save, Sparkles, CheckCircle2, Code2, Wrench, Briefcase, GraduationCap, Award, Plus, Layers, Trash2 } from 'lucide-react';
+import { FileText, Save, Sparkles, CheckCircle2, Code2, Wrench, Briefcase, GraduationCap, Award, Plus, Layers, Trash2, RefreshCw } from 'lucide-react';
 import { UserProfile, MasterTemplate } from '@/lib/db';
 
 const DEFAULT_SAMPLE_LATEX = `\\documentclass[10pt, letterpaper]{article}
@@ -97,6 +97,7 @@ export default function ProfilePage() {
         setProfile(data.profile);
         if (data.profile.templates) setTemplates(data.profile.templates);
         setSaved(true);
+        alert('Master LaTeX Resume successfully parsed and saved!');
       }
     } catch {
       alert('Error parsing LaTeX code.');
@@ -267,7 +268,7 @@ export default function ProfilePage() {
                 className="bg-slate-950 text-xs text-white px-3 py-1.5 rounded-lg border border-slate-800 focus:outline-none focus:border-sky-500 max-w-xs"
               />
             </div>
-            <span className="text-xs text-sky-400">Edit LaTeX source code for active resume</span>
+            <span className="text-xs text-sky-400">Edit or paste LaTeX source code below</span>
           </div>
 
           <textarea
@@ -277,6 +278,25 @@ export default function ProfilePage() {
             className="w-full bg-slate-950 font-mono text-xs text-sky-200 p-4 rounded-xl border border-slate-800 focus:outline-none focus:border-sky-500 leading-relaxed"
             placeholder="Paste your complete resume.tex source code here..."
           />
+
+          {/* Action Bar under LaTeX Editor */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-800">
+            <button
+              onClick={() => setLatexInput(DEFAULT_SAMPLE_LATEX)}
+              className="text-xs text-slate-400 hover:text-slate-200 underline flex items-center gap-1"
+            >
+              <RefreshCw className="w-3 h-3" /> Reset to Sample LaTeX
+            </button>
+
+            <button
+              onClick={handleSaveCurrentTemplate}
+              disabled={parsing}
+              className="w-full sm:w-auto px-6 py-3 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-sky-600/30"
+            >
+              <Sparkles className="w-4 h-4" />
+              {parsing ? 'Parsing & Extracting Profile...' : '⚡ Apply, Save & Parse Master LaTeX Resume'}
+            </button>
+          </div>
         </div>
       )}
 
@@ -347,7 +367,7 @@ export default function ProfilePage() {
               </div>
             </div>
           ) : (
-            <p className="text-xs text-slate-400">Click "Save & Active Template" to parse skills.</p>
+            <p className="text-xs text-slate-400">Click "⚡ Apply, Save & Parse Master LaTeX Resume" to parse skills.</p>
           )}
         </div>
       )}
