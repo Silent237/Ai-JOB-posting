@@ -37,11 +37,22 @@ export default function JobDiscoveryPage() {
   };
 
   const fetchWorkerState = () => {
+    let clientRunning: boolean | null = null;
+    try {
+      const storedRun = localStorage.getItem('hunt_worker_is_running');
+      if (storedRun !== null) clientRunning = storedRun === 'true';
+    } catch {}
+
     fetch('/api/worker')
       .then(res => res.json())
       .then(data => {
         if (data.state) {
-          setWorkerState(data.state);
+          const finalRunning = clientRunning !== null ? clientRunning : Boolean(data.state.isRunning);
+          const finalState: WorkerState = {
+            ...data.state,
+            isRunning: finalRunning,
+          };
+          setWorkerState(finalState);
           setMinScore(data.state.minMatchScore);
           setAutoSend(Boolean(data.state.autoSendEmail));
         }
@@ -78,17 +89,20 @@ export default function JobDiscoveryPage() {
   const handleToggleWorker = async () => {
     if (!workerState) return;
     const nextRunning = !workerState.isRunning;
+    
+    // Update client state & localStorage instantly
     try {
-      const res = await fetch('/api/worker', {
+      localStorage.setItem('hunt_worker_is_running', nextRunning ? 'true' : 'false');
+    } catch {}
+    setWorkerState({ ...workerState, isRunning: nextRunning });
+
+    try {
+      await fetch('/api/worker', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'toggle', isRunning: nextRunning }),
       });
-      const data = await res.json();
-      if (data.state) setWorkerState(data.state);
-    } catch {
-      alert('Failed to toggle worker.');
-    }
+    } catch {}
   };
 
   const handleToggleAutoSend = async () => {
