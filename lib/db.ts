@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { cookies } from 'next/headers';
 
 export interface MasterTemplate {
@@ -182,32 +183,38 @@ export function getActiveUserId(): string {
   return 'default_user';
 }
 
+export function getWritableBaseDir(): string {
+  let baseDir = process.cwd();
+  try {
+    const testDir = path.join(baseDir, 'data');
+    if (!fs.existsSync(testDir)) {
+      fs.mkdirSync(testDir, { recursive: true });
+    }
+  } catch {
+    baseDir = os.tmpdir();
+  }
+  return baseDir;
+}
+
 export function getUserDbPath(userId?: string): string {
   const targetUser = userId || getActiveUserId();
   const cleanId = targetUser.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
-  return path.join(process.cwd(), 'data', 'users', cleanId, 'db.json');
+  return path.join(getWritableBaseDir(), 'data', 'users', cleanId, 'db.json');
 }
 
 function ensureDbExists(userId?: string) {
   const dbPath = getUserDbPath(userId);
   const dir = path.dirname(dbPath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-
-  // Auto-migrate root data/db.json to default_user if needed
-  const legacyPath = path.join(process.cwd(), 'data', 'db.json');
-  if (!fs.existsSync(dbPath)) {
-    if (fs.existsSync(legacyPath)) {
-      try {
-        const raw = fs.readFileSync(legacyPath, 'utf-8');
-        fs.writeFileSync(dbPath, raw, 'utf-8');
-      } catch {
-        fs.writeFileSync(dbPath, JSON.stringify(defaultDB, null, 2), 'utf-8');
-      }
-    } else {
-      fs.writeFileSync(dbPath, JSON.stringify(defaultDB, null, 2), 'utf-8');
+  try {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
     }
+  } catch {}
+
+  if (!fs.existsSync(dbPath)) {
+    try {
+      fs.writeFileSync(dbPath, JSON.stringify(defaultDB, null, 2), 'utf-8');
+    } catch {}
   }
 }
 
@@ -215,50 +222,24 @@ export function getDB(userId?: string): DatabaseSchema {
   ensureDbExists(userId);
   const dbPath = getUserDbPath(userId);
   try {
-    const raw = fs.readFileSync(dbPath, 'utf-8');
-    const parsed = JSON.parse(raw);
-    if (!parsed.recruiterContacts) parsed.recruiterContacts = [];
-    if (!parsed.settings) parsed.settings = { theme: 'dark', googleDriveConnected: false, senderAccounts: [] };
-    if (!parsed.settings.senderAccounts) parsed.settings.senderAccounts = [];
-
-    // Migrate single smtpConfig to senderAccounts if needed
-    if (parsed.settings.smtpConfig?.user && parsed.settings.senderAccounts.length === 0) {
-      parsed.settings.senderAccounts.push({
-        id: 'sender_default',
-        name: parsed.profile?.name || 'Primary Sender',
-        user: parsed.settings.smtpConfig.user,
-        pass: parsed.settings.smtpConfig.pass || '',
-        host: parsed.settings.smtpConfig.host || 'smtp.gmail.com',
-        port: parsed.settings.smtpConfig.port || 465,
-        isDefault: true,
-      });
-      parsed.settings.activeSenderAccountId = 'sender_default';
+    if (fs.existsSync(dbPath)) {
+      const raw = fs.readFileSync(dbPath, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (!parsed.recruiterContacts) parsed.recruiterContacts = [];
+      if (!parsed.settings) parsed.settings = { theme: 'dark', googleDriveConnected: false, senderAccounts: [] };
+      if (!parsed.settings.senderAccounts) parsed.settings.senderAccounts = [];
+      return parsed;
     }
-
-    // Ensure profile templates exists
-    if (parsed.profile) {
-      if (!parsed.profile.templates) {
-        parsed.profile.templates = [
-          {
-            id: 'default_master',
-            title: 'Master Resume Template',
-            latex: parsed.profile.masterLaTeX || '',
-            isDefault: true,
-          }
-        ];
-        parsed.profile.activeTemplateId = 'default_master';
-      }
-    }
-    return parsed;
-  } catch {
-    return defaultDB;
-  }
+  } catch {}
+  return defaultDB;
 }
 
 export function saveDB(data: DatabaseSchema, userId?: string) {
   ensureDbExists(userId);
   const dbPath = getUserDbPath(userId);
-  fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf-8');
+  try {
+    fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf-8');
+  } catch {}
 }
 
 export function getProfile(userId?: string): UserProfile | null {

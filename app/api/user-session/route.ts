@@ -2,21 +2,27 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import fs from 'fs';
 import path from 'path';
-import { getActiveUserId } from '@/lib/db';
+import { getActiveUserId, getWritableBaseDir } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const activeUserId = getActiveUserId();
-  const usersDir = path.join(process.cwd(), 'data', 'users');
+  const usersDir = path.join(getWritableBaseDir(), 'data', 'users');
   
   let availableUsers: string[] = ['default_user'];
-  if (fs.existsSync(usersDir)) {
-    const dirs = fs.readdirSync(usersDir).filter((f) => {
-      return fs.statSync(path.join(usersDir, f)).isDirectory();
-    });
-    if (dirs.length > 0) availableUsers = dirs;
-  }
+  try {
+    if (fs.existsSync(usersDir)) {
+      const dirs = fs.readdirSync(usersDir).filter((f) => {
+        try {
+          return fs.statSync(path.join(usersDir, f)).isDirectory();
+        } catch {
+          return false;
+        }
+      });
+      if (dirs.length > 0) availableUsers = dirs;
+    }
+  } catch {}
 
   return NextResponse.json({ activeUserId, availableUsers });
 }
