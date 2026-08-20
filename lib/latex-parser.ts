@@ -1,6 +1,20 @@
 import { UserProfile } from './db';
 import { JDAnalysis } from './ai-engine';
 
+// Helper to safely check if text contains a technical keyword without throwing RegExp syntax errors for C++, C#, etc.
+function containsKeyword(text: string, kw: string): boolean {
+  if (!text || !kw) return false;
+  try {
+    const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (/[+#]/.test(kw)) {
+      return new RegExp(`(?:^|\\s|[,;:({\\[/\`"'])${escaped}(?:$|\\s|[,;:)}\\]/\`"'])`, 'i').test(text);
+    }
+    return new RegExp(`\\b${escaped}\\b`, 'i').test(text);
+  } catch {
+    return text.toLowerCase().includes(kw.toLowerCase());
+  }
+}
+
 // Helper to strip LaTeX markup into clean text while removing all TeX comments & formatting junk
 export function stripLatex(text: string): string {
   if (!text) return '';
@@ -123,27 +137,27 @@ export function parseLaTeXCV(latexCode: string): UserProfile {
     tools: ['Git', 'GitHub', 'GitLab', 'Docker', 'Kubernetes', 'AWS', 'Linux', 'WSL', 'RabbitMQ', 'SonarQube', 'Apache', 'Nginx', 'Vercel', 'Netlify', 'Postman', 'Webpack', 'Vite', 'Prompt Engineering', 'Generative AI', 'LLM']
   };
 
-  // Scan all text for TECH_CATEGORIES
+  // Scan all text for TECH_CATEGORIES using safe containsKeyword helper
   for (const lang of TECH_CATEGORIES.languages) {
-    if (new RegExp(`\\b${lang.replace('.', '\\.')}\\b`, 'i').test(cleanText)) {
+    if (containsKeyword(cleanText, lang)) {
       if (!languages.includes(lang)) languages.push(lang);
     }
   }
 
   for (const fw of TECH_CATEGORIES.frameworks) {
-    if (new RegExp(`\\b${fw.replace('.', '\\.')}\\b`, 'i').test(cleanText)) {
+    if (containsKeyword(cleanText, fw)) {
       if (!frameworks.includes(fw)) frameworks.push(fw);
     }
   }
 
   for (const db of TECH_CATEGORIES.databases) {
-    if (new RegExp(`\\b${db.replace('.', '\\.')}\\b`, 'i').test(cleanText)) {
+    if (containsKeyword(cleanText, db)) {
       if (!databases.includes(db)) databases.push(db);
     }
   }
 
   for (const t of TECH_CATEGORIES.tools) {
-    if (new RegExp(`\\b${t.replace('.', '\\.')}\\b`, 'i').test(cleanText)) {
+    if (containsKeyword(cleanText, t)) {
       if (!tools.includes(t)) tools.push(t);
     }
   }
