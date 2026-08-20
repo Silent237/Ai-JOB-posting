@@ -12,8 +12,68 @@ export interface DiscoveredJob {
   visaSponsored?: boolean;
 }
 
-// Preset MNC & Global Tech Roles (India, Remote, Relocation)
+// Preset MNC & Global Roles (Tech, Customer Support, Operations, Remote, Relocation)
 const EXTENDED_MNC_JOBS: DiscoveredJob[] = [
+  {
+    id: 'cs_amazon_1',
+    title: 'Customer Service Associate',
+    company: 'Amazon India',
+    location: 'Virtual / Remote India (Work From Home)',
+    url: 'https://www.amazon.jobs/en/jobs/customer-service-associate',
+    source: 'Amazon Customer Service',
+    description: 'Assist Amazon international & domestic customers via phone, email, and chat. Resolve order inquiries, refund processing, logistics tracking, and customer escalation management.',
+    datePosted: 'Today',
+  },
+  {
+    id: 'cs_amazon_2',
+    title: 'Customer Support Specialist (Chat & Email)',
+    company: 'Amazon Global Operations',
+    location: 'Bengaluru / Hyderabad / Remote',
+    url: 'https://www.amazon.jobs/en/jobs/customer-service-associate',
+    source: 'Amazon Careers',
+    description: 'Provide high-quality customer experience for global accounts. Handle customer queries, ticketing system management, and policy compliance.',
+    datePosted: 'Today',
+  },
+  {
+    id: 'cs_concentrix_1',
+    title: 'Customer Service Advisor / Associate',
+    company: 'Concentrix India',
+    location: 'Gurugram / Noida / Remote India',
+    url: 'https://jobs.concentrix.com/',
+    source: 'Concentrix Careers',
+    description: 'Deliver exceptional customer care, technical troubleshooting, and service support for US & UK client accounts. Excellent communication skills required.',
+    datePosted: 'Today',
+  },
+  {
+    id: 'cs_teleperformance_1',
+    title: 'Customer Support Executive',
+    company: 'Teleperformance',
+    location: 'Gurugram / Mumbai / Remote',
+    url: 'https://www.teleperformance.com/en-us/careers/',
+    source: 'Teleperformance',
+    description: 'Inbound customer support, voice & non-voice operations, handling customer feedback, account verification, and service desk ticketing.',
+    datePosted: 'Today',
+  },
+  {
+    id: 'cs_accenture_1',
+    title: 'Customer Operations Associate',
+    company: 'Accenture Operations',
+    location: 'Gurugram / Bengaluru / Remote India',
+    url: 'https://www.accenture.com/in-en/careers',
+    source: 'Accenture Operations',
+    description: 'Managing customer workflows, processing digital requests, multi-channel customer communications, and operations quality auditing.',
+    datePosted: 'Today',
+  },
+  {
+    id: 'cs_wipro_1',
+    title: 'Customer Service Executive (Voice & Non-Voice)',
+    company: 'Wipro BPO / DOP',
+    location: 'Noida / Hyderabad / Remote',
+    url: 'https://careers.wipro.com/',
+    source: 'Wipro Careers',
+    description: 'Handling global client support requests, customer relationship management (CRM), and real-time query resolution.',
+    datePosted: 'Today',
+  },
   {
     id: 'mnc_deloitte_1',
     title: 'Full Stack Developer (PHP, MySQL, React)',
@@ -57,23 +117,13 @@ const EXTENDED_MNC_JOBS: DiscoveredJob[] = [
     datePosted: 'Today',
   },
   {
-    id: 'mnc_accenture_1',
+    id: 'mnc_accenture_2',
     title: 'Application Development Associate / Specialist',
     company: 'Accenture India',
     location: 'Bengaluru / Gurugram / Remote India',
     url: 'https://www.accenture.com/in-en/careers',
     source: 'Accenture / Naukri Feed',
     description: 'Accenture Digital hiring Web Developers skilled in HTML5, CSS3, JavaScript, React.js, PHP, MySQL, Git, and Linux server management.',
-    datePosted: 'Today',
-  },
-  {
-    id: 'mnc_accenture_2',
-    title: 'Full Stack Engineer (Cloud & Microservices)',
-    company: 'Accenture Technology Solutions',
-    location: 'Hyderabad / Pune / Remote',
-    url: 'https://www.accenture.com/in-en/careers',
-    source: 'Accenture Tech',
-    description: 'Designing backend microservices, REST APIs, database schemas, and responsive web UIs for international client platforms.',
     datePosted: 'Today',
   },
   {
@@ -87,16 +137,6 @@ const EXTENDED_MNC_JOBS: DiscoveredJob[] = [
     datePosted: 'Today',
   },
   {
-    id: 'mnc_publicis_1',
-    title: 'Full Stack Engineer (PHP, React, Cloud)',
-    company: 'Publicis Sapient',
-    location: 'Gurugram / Bengaluru / Remote India',
-    url: 'https://careers.publicissapient.com/',
-    source: 'Publicis Sapient / LinkedIn',
-    description: 'Publicis Sapient is recruiting Full Stack Developers. Experience with React, PHP/Node.js, REST API architecture, and SQL optimization expected.',
-    datePosted: 'Today',
-  },
-  {
     id: 'ai_outlier_1',
     title: 'AI Model Evaluator & Prompt Engineer',
     company: 'Outlier AI Labs',
@@ -104,16 +144,6 @@ const EXTENDED_MNC_JOBS: DiscoveredJob[] = [
     url: 'https://outlier.ai/careers',
     source: 'Outlier AI Feed',
     description: 'Evaluate AI-generated responses for logical consistency, reasoning quality, Python/JavaScript code accuracy, and prompt alignment.',
-    datePosted: 'Today',
-  },
-  {
-    id: 'ai_scale_1',
-    title: 'Prompt Engineer & LLM Data Annotator',
-    company: 'Scale AI',
-    location: 'Remote (Worldwide)',
-    url: 'https://scale.com/careers',
-    source: 'Scale AI Feed',
-    description: 'Annotate, evaluate, and benchmark LLM outputs across STEM, programming languages, and complex reasoning prompts.',
     datePosted: 'Today',
   },
   {
@@ -147,58 +177,6 @@ const EXTENDED_MNC_JOBS: DiscoveredJob[] = [
     source: 'TCS Careers',
     description: 'Developing dynamic web applications, backend APIs, MySQL/PostgreSQL databases, and responsive UI components for enterprise platforms.',
     datePosted: 'Today',
-  },
-  {
-    id: 'mnc_infosys_1',
-    title: 'Specialist Programmer / Full Stack Developer',
-    company: 'Infosys Ltd.',
-    location: 'Bengaluru / Pune / Remote',
-    url: 'https://www.infosys.com/careers.html',
-    source: 'Infosys Careers',
-    description: 'Building microservices, RESTful APIs, frontend web interfaces using React/JavaScript, PHP, and SQL performance tuning.',
-    datePosted: 'Today',
-  },
-  {
-    id: 'mnc_wipro_1',
-    title: 'Project Engineer - Full Stack & Mobile',
-    company: 'Wipro Technologies',
-    location: 'Noida / Hyderabad / Remote',
-    url: 'https://careers.wipro.com/',
-    source: 'Wipro Careers',
-    description: 'Engineering scalable web and mobile applications using React Native, Node.js, PHP, MySQL, and cloud database workflows.',
-    datePosted: 'Today',
-  },
-  {
-    id: 'mnc_cognizant_1',
-    title: 'Software Developer (Full Stack Web)',
-    company: 'Cognizant Technology Solutions',
-    location: 'Gurugram / Pune / Remote',
-    url: 'https://careers.cognizant.com/',
-    source: 'Cognizant Careers',
-    description: 'Cognizant is hiring Software Engineers for web application development, REST API design, and database administration.',
-    datePosted: 'Today',
-  },
-  {
-    id: 'mnc_amazon_1',
-    title: 'Software Development Engineer',
-    company: 'Amazon India',
-    location: 'Bengaluru / Hyderabad / Remote',
-    url: 'https://www.amazon.jobs/',
-    source: 'Amazon Careers',
-    description: 'Designing distributed systems, high-availability web services, REST APIs, and database storage architectures.',
-    datePosted: 'Today',
-    visaSponsored: true,
-  },
-  {
-    id: 'mnc_microsoft_1',
-    title: 'Software Engineer',
-    company: 'Microsoft India Development Center',
-    location: 'Hyderabad / Noida / Remote',
-    url: 'https://careers.microsoft.com/',
-    source: 'Microsoft Careers',
-    description: 'Developing web services, cloud tools, API frameworks, and modern web application interfaces.',
-    datePosted: 'Today',
-    visaSponsored: true,
   }
 ];
 
@@ -213,14 +191,14 @@ export async function searchJobs(query: string = 'Full Stack Developer', locatio
     }
   };
 
-  // 1. Add preset MNC & Global Remote jobs
+  // 1. Add preset MNC & Global roles
   EXTENDED_MNC_JOBS.forEach(addJob);
 
-  // 2. Fetch Live Remote Jobs from Remotive API (Multiple broad queries)
-  const queriesToSearch = [query, 'Full Stack', 'PHP', 'React', 'Python', 'AI'];
-  for (const q of queriesToSearch.slice(0, 2)) {
+  // 2. Fetch Live Remote Jobs from Remotive API using user's EXACT search query
+  const searchTerms = [query, 'Customer Service', 'Support', 'Full Stack', 'Developer'];
+  for (const term of Array.from(new Set(searchTerms)).slice(0, 3)) {
     try {
-      const res = await fetch(`https://remotive.com/api/remote-jobs?search=${encodeURIComponent(q)}&limit=30`, { next: { revalidate: 1800 } });
+      const res = await fetch(`https://remotive.com/api/remote-jobs?search=${encodeURIComponent(term)}&limit=40`, { next: { revalidate: 300 } });
       if (res.ok) {
         const data = await res.json();
         if (data.jobs && Array.isArray(data.jobs)) {
@@ -244,7 +222,7 @@ export async function searchJobs(query: string = 'Full Stack Developer', locatio
 
   // 3. Fetch Live Jobs from Arbeitnow API
   try {
-    const res = await fetch(`https://www.arbeitnow.com/api/job-board-api`, { next: { revalidate: 1800 } });
+    const res = await fetch(`https://www.arbeitnow.com/api/job-board-api`, { next: { revalidate: 300 } });
     if (res.ok) {
       const data = await res.json();
       if (data.data && Array.isArray(data.data)) {
@@ -265,9 +243,9 @@ export async function searchJobs(query: string = 'Full Stack Developer', locatio
     }
   } catch {}
 
-  // 4. Fetch Live Remote Jobs from Jobicy API
+  // 4. Fetch Live Remote Jobs from Jobicy API with search term
   try {
-    const res = await fetch(`https://jobicy.com/api/v2/remote-jobs?count=30`, { next: { revalidate: 1800 } });
+    const res = await fetch(`https://jobicy.com/api/v2/remote-jobs?count=40&geo=india`, { next: { revalidate: 300 } });
     if (res.ok) {
       const data = await res.json();
       if (data.jobs && Array.isArray(data.jobs)) {
@@ -288,17 +266,20 @@ export async function searchJobs(query: string = 'Full Stack Developer', locatio
     }
   } catch {}
 
-  // Filter by query if query is provided
-  if (query && query.trim() !== '' && query !== 'Full Stack Developer') {
-    const qLower = query.toLowerCase();
-    const filtered = results.filter(j =>
-      j.title.toLowerCase().includes(qLower) ||
-      j.company.toLowerCase().includes(qLower) ||
-      j.description.toLowerCase().includes(qLower) ||
-      qLower.includes('developer') ||
-      qLower.includes('all')
-    );
-    return filtered.length > 0 ? filtered : results;
+  // Filter results by user query if provided
+  if (query && query.trim() !== '') {
+    const qClean = query.toLowerCase().trim();
+    const words = qClean.split(/\s+/).filter(w => w.length > 2);
+
+    const filtered = results.filter(j => {
+      const targetText = `${j.title} ${j.company} ${j.description} ${j.source}`.toLowerCase();
+      // Match exact query or any word
+      if (targetText.includes(qClean)) return true;
+      if (words.length > 0 && words.some(w => targetText.includes(w))) return true;
+      return false;
+    });
+
+    if (filtered.length > 0) return filtered;
   }
 
   return results;
@@ -314,7 +295,7 @@ export async function extractJobFromUrl(jobUrl: string): Promise<DiscoveredJob> 
     if (res.ok) {
       const html = await res.text();
       const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
-      const cleanTitle = titleMatch ? titleMatch[1].replace(/\|.*|-.*|:.*$/, '').trim() : 'Software Developer';
+      const cleanTitle = titleMatch ? titleMatch[1].replace(/\|.*|-.*|:.*$/, '').trim() : 'Job Opportunity';
       
       const cleanText = stripHtmlTags(html);
       const jdContent = cleanText.slice(0, 3000);
@@ -337,12 +318,12 @@ export async function extractJobFromUrl(jobUrl: string): Promise<DiscoveredJob> 
   const domainName = jobUrl.includes('http') ? new URL(jobUrl).hostname : 'Company';
   return {
     id: `url_${Date.now()}`,
-    title: 'Full Stack Engineer',
+    title: 'Customer Service / Tech Role',
     company: domainName.replace('www.', '').split('.')[0],
     location: 'Remote / Onsite',
     url: jobUrl,
     source: 'URL Importer',
-    description: `Imported Job Description from ${jobUrl}. Includes requirements for React, TypeScript, Node.js, REST APIs, and SQL database management.`,
+    description: `Imported Job Description from ${jobUrl}.`,
   };
 }
 
