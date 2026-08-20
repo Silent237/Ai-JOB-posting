@@ -37,25 +37,40 @@ export default function JobDiscoveryPage() {
   };
 
   const fetchWorkerState = () => {
-    // 1. LocalStorage Cache Restore
+    let cachedState: WorkerState | null = null;
     try {
       const cached = localStorage.getItem('hunt_worker_state_cache');
       if (cached) {
-        const parsed = JSON.parse(cached);
-        if (parsed) setWorkerState(parsed);
+        cachedState = JSON.parse(cached);
+        if (cachedState) setWorkerState(cachedState);
       }
     } catch {}
 
-    // 2. API Fetch
     fetch('/api/worker')
       .then(res => res.json())
       .then(data => {
         if (data.state) {
-          setWorkerState(data.state);
-          setMinScore(data.state.minMatchScore);
-          setAutoSend(Boolean(data.state.autoSendEmail));
+          let finalState = data.state;
+          // Protect against serverless container memory wiping queuedJobs upon refresh
+          if ((!data.state.queuedJobs || data.state.queuedJobs.length === 0) && cachedState && cachedState.queuedJobs && cachedState.queuedJobs.length > 0) {
+            finalState = {
+              ...data.state,
+              queuedJobs: cachedState.queuedJobs,
+              processedCount: Math.max(data.state.processedCount || 0, cachedState.processedCount || 0),
+            };
+            // Re-sync server container with cached queuedJobs
+            fetch('/api/jobs', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'enqueue', jobs: cachedState.queuedJobs }),
+            }).catch(() => {});
+          }
+
+          setWorkerState(finalState);
+          setMinScore(finalState.minMatchScore);
+          setAutoSend(Boolean(finalState.autoSendEmail));
           try {
-            localStorage.setItem('hunt_worker_state_cache', JSON.stringify(data.state));
+            localStorage.setItem('hunt_worker_state_cache', JSON.stringify(finalState));
           } catch {}
         }
       })
@@ -80,13 +95,13 @@ export default function JobDiscoveryPage() {
 
   // Autonomous worker processing loop
   useEffect(() => {
-    if (workerState?.isRunning && workerState.queuedJobs.length > 0) {
+    if (workerState?.isRunning && workerState.queuedJobs && workerState.queuedJobs.length > 0) {
       const timer = setTimeout(() => {
         handleProcessNext();
       }, 3500);
       return () => clearTimeout(timer);
     }
-  }, [workerState?.isRunning, workerState?.queuedJobs.length]);
+  }, [workerState?.isRunning, workerState?.queuedJobs?.length]);
 
   const handleToggleWorker = async () => {
     if (!workerState) return;
