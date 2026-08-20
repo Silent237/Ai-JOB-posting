@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, FileText, PlusCircle, Briefcase, Mail, CheckCircle2, Sparkles, Bot, Users, UserCheck, Shield, Plus, Menu, X } from 'lucide-react';
+import { LayoutDashboard, FileText, PlusCircle, Briefcase, Mail, CheckCircle2, Sparkles, Bot, Users, Shield, Plus, Menu, X } from 'lucide-react';
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -15,11 +15,26 @@ export default function Sidebar() {
   const [isOpenMobile, setIsOpenMobile] = useState(false);
 
   const fetchSession = () => {
+    // 1. Restore from localStorage if available
+    try {
+      const stored = localStorage.getItem('hunt_active_user_id');
+      if (stored && stored.trim()) {
+        setActiveUserId(stored.trim());
+      }
+    } catch {}
+
     fetch('/api/user-session')
       .then((res) => res.json())
       .then((data) => {
-        if (data.activeUserId) setActiveUserId(data.activeUserId);
-        if (data.availableUsers) setAvailableUsers(data.availableUsers);
+        if (data.activeUserId) {
+          setActiveUserId(data.activeUserId);
+          try {
+            localStorage.setItem('hunt_active_user_id', data.activeUserId);
+          } catch {}
+        }
+        if (data.availableUsers) {
+          setAvailableUsers(data.availableUsers);
+        }
       })
       .catch(() => {});
   };
@@ -40,16 +55,21 @@ export default function Sidebar() {
   }, [pathname]);
 
   const handleSwitchUser = async (userId: string) => {
+    const clean = userId.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+    try {
+      localStorage.setItem('hunt_active_user_id', clean);
+      document.cookie = `hunt_user_id=${clean}; path=/; max-age=2592000; SameSite=Lax`;
+    } catch {}
+
     try {
       await fetch('/api/user-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ userId: clean }),
       });
-      window.location.reload();
-    } catch {
-      alert('Failed to switch workspace account.');
-    }
+    } catch {}
+
+    window.location.reload();
   };
 
   const handleCreateNewUser = async () => {

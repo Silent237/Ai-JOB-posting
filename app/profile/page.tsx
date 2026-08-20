@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { FileText, Save, Sparkles, CheckCircle2, Code2, Wrench, Briefcase, GraduationCap, Award, Plus, Layers, Trash2, RefreshCw } from 'lucide-react';
 import { UserProfile, MasterTemplate } from '@/lib/db';
+import { parseLaTeXCV } from '@/lib/latex-parser';
 
 const DEFAULT_SAMPLE_LATEX = `\\documentclass[10pt, letterpaper]{article}
 \\usepackage[full]{geometry}
@@ -52,11 +53,34 @@ export default function ProfilePage() {
   const [saved, setSaved] = useState(false);
 
   const fetchProfileData = () => {
+    // 1. Check local storage cache first
+    try {
+      const local = localStorage.getItem('hunt_profile_cache');
+      if (local) {
+        const parsedLocal = JSON.parse(local);
+        if (parsedLocal && parsedLocal.masterLaTeX) {
+          setProfile(parsedLocal);
+          if (parsedLocal.templates && parsedLocal.templates.length > 0) {
+            setTemplates(parsedLocal.templates);
+            const activeId = parsedLocal.activeTemplateId || parsedLocal.templates[0].id;
+            setActiveTplId(activeId);
+            const activeObj = parsedLocal.templates.find((t: MasterTemplate) => t.id === activeId) || parsedLocal.templates[0];
+            setLatexInput(activeObj.latex);
+            setTplTitleInput(activeObj.title);
+          }
+        }
+      }
+    } catch {}
+
+    // 2. Fetch from API
     fetch('/api/profile')
       .then(res => res.json())
       .then(data => {
         if (data.profile) {
           setProfile(data.profile);
+          try {
+            localStorage.setItem('hunt_profile_cache', JSON.stringify(data.profile));
+          } catch {}
           if (data.profile.templates && data.profile.templates.length > 0) {
             setTemplates(data.profile.templates);
             const activeId = data.profile.activeTemplateId || data.profile.templates[0].id;
@@ -81,30 +105,55 @@ export default function ProfilePage() {
   const handleParseLatexWithCode = async (code: string, titleStr: string, tplId: string) => {
     setParsing(true);
     setSaved(false);
+
+    // 1. Instant Client-Side Parsing
+    const parsedProfile = parseLaTeXCV(code);
+    const targetId = tplId || `tpl_${Date.now()}`;
+    
+    const existingTemplates = templates.length > 0 ? [...templates] : [];
+    const existingIdx = existingTemplates.findIndex((t) => t.id === targetId);
+
+    const newTpl: MasterTemplate = {
+      id: targetId,
+      title: titleStr || 'Master Resume Template',
+      latex: code,
+      isDefault: existingTemplates.length === 0 || targetId === activeTplId,
+    };
+
+    if (existingIdx >= 0) {
+      existingTemplates[existingIdx] = newTpl;
+    } else {
+      existingTemplates.push(newTpl);
+    }
+
+    parsedProfile.templates = existingTemplates;
+    parsedProfile.activeTemplateId = targetId;
+
+    // Update Client State Instantly
+    setProfile(parsedProfile);
+    setTemplates(existingTemplates);
+    setActiveTplId(targetId);
+    setSaved(true);
+    setParsing(false);
+    setActiveTab('skills');
+
     try {
-      const res = await fetch('/api/profile', {
+      localStorage.setItem('hunt_profile_cache', JSON.stringify(parsedProfile));
+    } catch {}
+
+    // 2. Background Sync to Server API
+    try {
+      await fetch('/api/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'save_template',
           masterLaTeX: code,
           templateTitle: titleStr,
-          templateId: tplId,
+          templateId: targetId,
         }),
       });
-      const data = await res.json();
-      if (data.profile) {
-        setProfile(data.profile);
-        if (data.profile.templates) setTemplates(data.profile.templates);
-        setSaved(true);
-        setActiveTab('skills');
-        alert(`Master LaTeX Resume for "${data.profile.name}" successfully parsed! Extracted ${data.profile.extractedKeywords?.length || 0} skills & technologies.`);
-      }
-    } catch {
-      alert('Error parsing LaTeX code.');
-    } finally {
-      setParsing(false);
-    }
+    } catch {}
   };
 
   const handleSaveCurrentTemplate = async () => {
@@ -116,8 +165,17 @@ export default function ProfilePage() {
     setLatexInput(tpl.latex);
     setTplTitleInput(tpl.title);
 
+    const parsedProfile = parseLaTeXCV(tpl.latex);
+    parsedProfile.templates = templates;
+    parsedProfile.activeTemplateId = tpl.id;
+    setProfile(parsedProfile);
+
     try {
-      const res = await fetch('/api/profile', {
+      localStorage.setItem('hunt_profile_cache', JSON.stringify(parsedProfile));
+    } catch {}
+
+    try {
+      fetch('/api/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -125,8 +183,6 @@ export default function ProfilePage() {
           templateId: tpl.id,
         }),
       });
-      const data = await res.json();
-      if (data.profile) setProfile(data.profile);
     } catch {}
   };
 
@@ -165,7 +221,7 @@ export default function ProfilePage() {
             className="px-4 py-2.5 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white font-medium rounded-xl text-sm transition-all flex items-center gap-2 shadow-lg shadow-sky-600/30"
           >
             <Sparkles className="w-4 h-4" />
-            {parsing ? 'Saving & Parsing...' : '⚡ Apply, Save & Parse Master LaTeX Resume'}
+            {parsing ? 'Parsing & Extracting Profile...' : '⚡ Apply, Save & Parse Master LaTeX Resume'}
           </button>
         </div>
       </div>
