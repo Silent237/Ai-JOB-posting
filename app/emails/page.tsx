@@ -111,10 +111,10 @@ export default function EmailsPage() {
 
   const handleOpenEditAccount = (acc: SenderAccount) => {
     setEditingAccountId(acc.id);
-    setSenderName(acc.name || 'Vinayak Srivastava');
-    setSenderEmail(acc.user);
-    setSmtpHost(acc.host || 'smtp.gmail.com');
-    setSmtpPort(acc.port || 465);
+    setSenderName(acc.name || acc.senderName || 'Vinayak Srivastava');
+    setSenderEmail(acc.user || acc.email || '');
+    setSmtpHost(acc.host || acc.smtpHost || 'smtp.gmail.com');
+    setSmtpPort(acc.port || acc.smtpPort || 465);
     setAppPassword(acc.pass || '');
     setAddingAccount(true);
   };

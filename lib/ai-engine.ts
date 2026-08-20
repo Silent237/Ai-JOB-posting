@@ -63,7 +63,9 @@ export function analyzeJobDescription(jdText: string, userProfile?: UserProfile 
     userProfile.skills.frameworks.forEach(s => userSkillsSet.add(s.toLowerCase()));
     userProfile.skills.databases.forEach(s => userSkillsSet.add(s.toLowerCase()));
     userProfile.skills.tools.forEach(s => userSkillsSet.add(s.toLowerCase()));
-    userProfile.extractedKeywords.forEach(s => userSkillsSet.add(s.toLowerCase()));
+    if (userProfile.extractedKeywords) {
+      userProfile.extractedKeywords.forEach(s => userSkillsSet.add(s.toLowerCase()));
+    }
   }
 
   const matchingSkills: string[] = [];
