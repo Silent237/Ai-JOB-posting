@@ -51,6 +51,7 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<'latex' | 'skills' | 'experience' | 'projects' | 'education'>('latex');
   const [parsing, setParsing] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fetchProfileData = () => {
     // 1. Check local storage cache first
@@ -92,10 +93,17 @@ export default function ProfilePage() {
             setLatexInput(data.profile.masterLaTeX);
           }
         } else {
-          handleParseLatexWithCode(DEFAULT_SAMPLE_LATEX, 'Master Resume', 'default_master');
+          // Initialize default sample profile silently without setting parsing state
+          const defaultProf = parseLaTeXCV(DEFAULT_SAMPLE_LATEX);
+          defaultProf.templates = [{ id: 'default_master', title: 'Master Resume', latex: DEFAULT_SAMPLE_LATEX }];
+          defaultProf.activeTemplateId = 'default_master';
+          setProfile(defaultProf);
+          setTemplates(defaultProf.templates);
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error('Fetch profile error:', err);
+      });
   };
 
   useEffect(() => {
@@ -105,45 +113,49 @@ export default function ProfilePage() {
   const handleParseLatexWithCode = async (code: string, titleStr: string, tplId: string) => {
     setParsing(true);
     setSaved(false);
-
-    // 1. Instant Client-Side Parsing
-    const parsedProfile = parseLaTeXCV(code);
-    const targetId = tplId || `tpl_${Date.now()}`;
-    
-    const existingTemplates = templates.length > 0 ? [...templates] : [];
-    const existingIdx = existingTemplates.findIndex((t) => t.id === targetId);
-
-    const newTpl: MasterTemplate = {
-      id: targetId,
-      title: titleStr || 'Master Resume Template',
-      latex: code,
-      isDefault: existingTemplates.length === 0 || targetId === activeTplId,
-    };
-
-    if (existingIdx >= 0) {
-      existingTemplates[existingIdx] = newTpl;
-    } else {
-      existingTemplates.push(newTpl);
-    }
-
-    parsedProfile.templates = existingTemplates;
-    parsedProfile.activeTemplateId = targetId;
-
-    // Update Client State Instantly
-    setProfile(parsedProfile);
-    setTemplates(existingTemplates);
-    setActiveTplId(targetId);
-    setSaved(true);
-    setParsing(false);
-    setActiveTab('skills');
+    setErrorMessage(null);
 
     try {
-      localStorage.setItem('hunt_profile_cache', JSON.stringify(parsedProfile));
-    } catch {}
+      if (!code || !code.trim()) {
+        throw new Error('LaTeX source code cannot be empty.');
+      }
 
-    // 2. Background Sync to Server API
-    try {
-      await fetch('/api/profile', {
+      // 1. Instant Client-Side Parsing
+      const parsedProfile = parseLaTeXCV(code);
+      const targetId = tplId || `tpl_${Date.now()}`;
+      
+      const existingTemplates = templates.length > 0 ? [...templates] : [];
+      const existingIdx = existingTemplates.findIndex((t) => t.id === targetId);
+
+      const newTpl: MasterTemplate = {
+        id: targetId,
+        title: titleStr || 'Master Resume Template',
+        latex: code,
+        isDefault: existingTemplates.length === 0 || targetId === activeTplId,
+      };
+
+      if (existingIdx >= 0) {
+        existingTemplates[existingIdx] = newTpl;
+      } else {
+        existingTemplates.push(newTpl);
+      }
+
+      parsedProfile.templates = existingTemplates;
+      parsedProfile.activeTemplateId = targetId;
+
+      // Update Client State Instantly
+      setProfile(parsedProfile);
+      setTemplates(existingTemplates);
+      setActiveTplId(targetId);
+      setSaved(true);
+      setActiveTab('skills');
+
+      try {
+        localStorage.setItem('hunt_profile_cache', JSON.stringify(parsedProfile));
+      } catch {}
+
+      // 2. Background Sync to Server API
+      fetch('/api/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -152,8 +164,13 @@ export default function ProfilePage() {
           templateTitle: titleStr,
           templateId: targetId,
         }),
-      });
-    } catch {}
+      }).catch(() => {});
+
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Error parsing LaTeX resume code.');
+    } finally {
+      setParsing(false);
+    }
   };
 
   const handleSaveCurrentTemplate = async () => {
@@ -225,6 +242,14 @@ export default function ProfilePage() {
           </button>
         </div>
       </div>
+
+      {/* Error Alert Message if Any */}
+      {errorMessage && (
+        <div className="p-4 bg-rose-950/80 border border-rose-800 text-rose-200 text-xs font-semibold rounded-xl flex items-center justify-between">
+          <span>⚠️ {errorMessage}</span>
+          <button onClick={() => setErrorMessage(null)} className="text-white hover:underline">Dismiss</button>
+        </div>
+      )}
 
       {/* Multi-Template Switcher Selector */}
       <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-3">
