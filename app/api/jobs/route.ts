@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { searchJobs, extractJobFromUrl } from '@/lib/job-fetcher';
-import { enqueueJobs } from '@/lib/auto-worker';
+import { enqueueJobs, getWorkerState } from '@/lib/auto-worker';
+import { getActiveUserId } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,12 +20,13 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const userId = getActiveUserId();
     const { action, jobUrl, bulkText, jobs } = await req.json();
 
     if (action === 'import_url' && jobUrl) {
       const extracted = await extractJobFromUrl(jobUrl);
-      enqueueJobs([extracted]);
-      return NextResponse.json({ success: true, job: extracted });
+      const state = enqueueJobs([extracted], userId);
+      return NextResponse.json({ success: true, job: extracted, state });
     }
 
     if (action === 'import_bulk' && bulkText) {
@@ -41,13 +43,13 @@ export async function POST(req: Request) {
           description: sec.trim(),
         };
       });
-      enqueueJobs(imported);
-      return NextResponse.json({ success: true, count: imported.length });
+      const state = enqueueJobs(imported, userId);
+      return NextResponse.json({ success: true, count: imported.length, state });
     }
 
     if (action === 'enqueue' && Array.isArray(jobs)) {
-      enqueueJobs(jobs);
-      return NextResponse.json({ success: true, count: jobs.length });
+      const state = enqueueJobs(jobs, userId);
+      return NextResponse.json({ success: true, count: jobs.length, state });
     }
 
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });

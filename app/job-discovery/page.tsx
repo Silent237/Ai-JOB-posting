@@ -37,6 +37,16 @@ export default function JobDiscoveryPage() {
   };
 
   const fetchWorkerState = () => {
+    // 1. LocalStorage Cache Restore
+    try {
+      const cached = localStorage.getItem('hunt_worker_state_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed) setWorkerState(parsed);
+      }
+    } catch {}
+
+    // 2. API Fetch
     fetch('/api/worker')
       .then(res => res.json())
       .then(data => {
@@ -44,6 +54,9 @@ export default function JobDiscoveryPage() {
           setWorkerState(data.state);
           setMinScore(data.state.minMatchScore);
           setAutoSend(Boolean(data.state.autoSendEmail));
+          try {
+            localStorage.setItem('hunt_worker_state_cache', JSON.stringify(data.state));
+          } catch {}
         }
       })
       .catch(() => {});
@@ -85,7 +98,10 @@ export default function JobDiscoveryPage() {
         body: JSON.stringify({ action: 'toggle', isRunning: nextRunning }),
       });
       const data = await res.json();
-      if (data.state) setWorkerState(data.state);
+      if (data.state) {
+        setWorkerState(data.state);
+        try { localStorage.setItem('hunt_worker_state_cache', JSON.stringify(data.state)); } catch {}
+      }
     } catch {
       alert('Failed to toggle worker.');
     }
@@ -95,24 +111,32 @@ export default function JobDiscoveryPage() {
     const nextAutoSend = !autoSend;
     setAutoSend(nextAutoSend);
     try {
-      await fetch('/api/worker', {
+      const res = await fetch('/api/worker', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'set_auto_send', autoSendEmail: nextAutoSend }),
       });
-      fetchWorkerState();
+      const data = await res.json();
+      if (data.state) {
+        setWorkerState(data.state);
+        try { localStorage.setItem('hunt_worker_state_cache', JSON.stringify(data.state)); } catch {}
+      }
     } catch {}
   };
 
   const handleSetMinScore = async (val: number) => {
     setMinScore(val);
     try {
-      await fetch('/api/worker', {
+      const res = await fetch('/api/worker', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'set_score', minMatchScore: val }),
       });
-      fetchWorkerState();
+      const data = await res.json();
+      if (data.state) {
+        setWorkerState(data.state);
+        try { localStorage.setItem('hunt_worker_state_cache', JSON.stringify(data.state)); } catch {}
+      }
     } catch {}
   };
 
@@ -120,12 +144,16 @@ export default function JobDiscoveryPage() {
     const overrideEmail = customEmails[job.id]?.trim();
     const finalJob = overrideEmail ? { ...job, url: overrideEmail } : job;
     try {
-      await fetch('/api/jobs', {
+      const res = await fetch('/api/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'enqueue', jobs: [finalJob] }),
       });
-      fetchWorkerState();
+      const data = await res.json();
+      if (data.state) {
+        setWorkerState(data.state);
+        try { localStorage.setItem('hunt_worker_state_cache', JSON.stringify(data.state)); } catch {}
+      }
     } catch {
       alert('Failed to queue job.');
     }
@@ -140,8 +168,13 @@ export default function JobDiscoveryPage() {
         body: JSON.stringify({ action: 'enqueue', jobs }),
       });
       const data = await res.json();
-      fetchWorkerState();
-      alert(`⚡ Successfully queued all ${jobs.length} jobs into your private worker queue!`);
+      if (data.state) {
+        setWorkerState(data.state);
+        try { localStorage.setItem('hunt_worker_state_cache', JSON.stringify(data.state)); } catch {}
+        alert(`⚡ Successfully queued all ${jobs.length} jobs! Worker queue count is now ${data.state.queuedJobs.length}`);
+      } else {
+        fetchWorkerState();
+      }
     } catch {
       alert('Failed to queue jobs.');
     }
@@ -157,9 +190,10 @@ export default function JobDiscoveryPage() {
         body: JSON.stringify({ action: 'import_url', jobUrl: urlInput }),
       });
       const data = await res.json();
-      if (data.success) {
+      if (data.state) {
+        setWorkerState(data.state);
+        try { localStorage.setItem('hunt_worker_state_cache', JSON.stringify(data.state)); } catch {}
         setUrlInput('');
-        fetchWorkerState();
       }
     } catch {
       alert('Error importing URL.');
@@ -178,9 +212,10 @@ export default function JobDiscoveryPage() {
         body: JSON.stringify({ action: 'import_bulk', bulkText: bulkInput }),
       });
       const data = await res.json();
-      if (data.success) {
+      if (data.state) {
+        setWorkerState(data.state);
+        try { localStorage.setItem('hunt_worker_state_cache', JSON.stringify(data.state)); } catch {}
         setBulkInput('');
-        fetchWorkerState();
       }
     } catch {
       alert('Error importing bulk JDs.');
@@ -197,7 +232,10 @@ export default function JobDiscoveryPage() {
         body: JSON.stringify({ action: 'process_next' }),
       });
       const data = await res.json();
-      if (data.state) setWorkerState(data.state);
+      if (data.state) {
+        setWorkerState(data.state);
+        try { localStorage.setItem('hunt_worker_state_cache', JSON.stringify(data.state)); } catch {}
+      }
     } catch {}
   };
 
@@ -527,7 +565,7 @@ export default function JobDiscoveryPage() {
             <div className="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-300 uppercase">Jobs Queued</span>
-                <span className="text-sm font-bold text-indigo-400">{workerState?.queuedJobs.length || 0}</span>
+                <span className="text-sm font-bold text-indigo-400">{workerState?.queuedJobs?.length || 0}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-300 uppercase">Tailored Resumes & PDFs Created</span>
@@ -536,7 +574,7 @@ export default function JobDiscoveryPage() {
 
               <button
                 onClick={handleProcessNext}
-                disabled={!workerState || workerState.queuedJobs.length === 0}
+                disabled={!workerState || !workerState.queuedJobs || workerState.queuedJobs.length === 0}
                 className="w-full mt-2 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-bold rounded-lg text-xs transition-all flex items-center justify-center gap-1.5"
               >
                 <Zap className="w-3.5 h-3.5" /> Process Next Job Immediately
@@ -555,7 +593,7 @@ export default function JobDiscoveryPage() {
             </div>
 
             <div className="bg-slate-950 font-mono text-[11px] p-3 rounded-xl border border-slate-800 h-64 overflow-y-auto space-y-2">
-              {workerState?.logs.map((log, idx) => (
+              {workerState?.logs?.map((log, idx) => (
                 <div key={idx} className="flex items-start gap-2">
                   <span className="text-slate-500 text-[10px] whitespace-nowrap">{log.timestamp}</span>
                   <span className={`${
