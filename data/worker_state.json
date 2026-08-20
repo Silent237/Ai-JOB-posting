@@ -1,0 +1,259 @@
+{
+  "isRunning": false,
+  "autoSendEmail": true,
+  "minMatchScore": 65,
+  "processedCount": 48,
+  "queuedJobs": [],
+  "logs": [
+    {
+      "timestamp": "2:28:49 PM",
+      "message": "Autonomous worker PAUSED",
+      "type": "info"
+    },
+    {
+      "timestamp": "12:50:11 PM",
+      "message": "[Worker] Skipped \"Customer Success Manager\" at SOCi (Match score 49% < min threshold 65%)",
+      "type": "warn"
+    },
+    {
+      "timestamp": "12:50:11 PM",
+      "message": "[Worker] Processing job: \"Customer Success Manager\" at SOCi",
+      "type": "info"
+    },
+    {
+      "timestamp": "12:50:07 PM",
+      "message": "[Worker] Skipped \"DevOps Engineer\" at Launchpad Technologies (Match score 49% < min threshold 65%)",
+      "type": "warn"
+    },
+    {
+      "timestamp": "12:50:07 PM",
+      "message": "[Worker] Processing job: \"DevOps Engineer\" at Launchpad Technologies",
+      "type": "info"
+    },
+    {
+      "timestamp": "12:50:03 PM",
+      "message": "[Worker] Skipped \"Inside Sales Representative - SMB\" at Documo Inc. (Match score 49% < min threshold 65%)",
+      "type": "warn"
+    },
+    {
+      "timestamp": "12:50:03 PM",
+      "message": "[Worker] Processing job: \"Inside Sales Representative - SMB\" at Documo Inc.",
+      "type": "info"
+    },
+    {
+      "timestamp": "12:49:59 PM",
+      "message": "[Worker] Skipped \"Director, Governance, Risk, and Compliance (GRC)\" at Clover Health (Match score 49% < min threshold 65%)",
+      "type": "warn"
+    },
+    {
+      "timestamp": "12:49:59 PM",
+      "message": "[Worker] Processing job: \"Director, Governance, Risk, and Compliance (GRC)\" at Clover Health",
+      "type": "info"
+    },
+    {
+      "timestamp": "12:49:55 PM",
+      "message": "[Worker] Skipped \"Senior Applied Research Engineer - Video Team\" at Synthesia (Match score 49% < min threshold 65%)",
+      "type": "warn"
+    },
+    {
+      "timestamp": "12:49:55 PM",
+      "message": "[Worker] Processing job: \"Senior Applied Research Engineer - Video Team\" at Synthesia",
+      "type": "info"
+    },
+    {
+      "timestamp": "12:49:51 PM",
+      "message": "[Worker] Skipped \"Member of the Technical Staff, Internal Agent\" at Vercel (Match score 49% < min threshold 65%)",
+      "type": "warn"
+    },
+    {
+      "timestamp": "12:49:51 PM",
+      "message": "[Worker] Processing job: \"Member of the Technical Staff, Internal Agent\" at Vercel",
+      "type": "info"
+    },
+    {
+      "timestamp": "12:49:47 PM",
+      "message": "[Worker] Skipped \"Technical Lead\" at Masabi (Match score 49% < min threshold 65%)",
+      "type": "warn"
+    },
+    {
+      "timestamp": "12:49:47 PM",
+      "message": "[Worker] Processing job: \"Technical Lead\" at Masabi",
+      "type": "info"
+    },
+    {
+      "timestamp": "12:49:43 PM",
+      "message": "[Worker] Skipped \"AI Tooling Engineer\" at Qventus (Match score 49% < min threshold 65%)",
+      "type": "warn"
+    },
+    {
+      "timestamp": "12:49:43 PM",
+      "message": "[Worker] Processing job: \"AI Tooling Engineer\" at Qventus",
+      "type": "info"
+    },
+    {
+      "timestamp": "12:49:39 PM",
+      "message": "[Worker] Skipped \"Senior Product Manager, Trading\" at Binance (Match score 49% < min threshold 65%)",
+      "type": "warn"
+    },
+    {
+      "timestamp": "12:49:39 PM",
+      "message": "[Worker] Processing job: \"Senior Product Manager, Trading\" at Binance",
+      "type": "info"
+    },
+    {
+      "timestamp": "12:49:35 PM",
+      "message": "[Worker] Skipped \"Senior Research Engineer - Voice\" at Synthesia (Match score 49% < min threshold 65%)",
+      "type": "warn"
+    },
+    {
+      "timestamp": "12:49:35 PM",
+      "message": "[Worker] Processing job: \"Senior Research Engineer - Voice\" at Synthesia",
+      "type": "info"
+    },
+    {
+      "timestamp": "12:49:31 PM",
+      "message": "[Worker] Skipped \"Business Development Manager\" at Qventus (Match score 49% < min threshold 65%)",
+      "type": "warn"
+    },
+    {
+      "timestamp": "12:49:31 PM",
+      "message": "[Worker] Processing job: \"Business Development Manager\" at Qventus",
+      "type": "info"
+    },
+    {
+      "timestamp": "12:49:27 PM",
+      "message": "[Worker] Skipped \"Strategic Account Executive (German Speaking)\" at Synthesia (Match score 49% < min threshold 65%)",
+      "type": "warn"
+    },
+    {
+      "timestamp": "12:49:27 PM",
+      "message": "[Worker] Processing job: \"Strategic Account Executive (German Speaking)\" at Synthesia",
+      "type": "info"
+    },
+    {
+      "timestamp": "12:49:23 PM",
+      "message": "[Worker] Skipped \"Principal Engineer - Platform & Data\" at Masabi (Match score 49% < min threshold 65%)",
+      "type": "warn"
+    },
+    {
+      "timestamp": "12:49:23 PM",
+      "message": "[Worker] Processing job: \"Principal Engineer - Platform & Data\" at Masabi",
+      "type": "info"
+    },
+    {
+      "timestamp": "12:49:19 PM",
+      "message": "[Worker] Skipped \"Director, Revenue Operations\" at Qventus (Match score 49% < min threshold 65%)",
+      "type": "warn"
+    },
+    {
+      "timestamp": "12:49:19 PM",
+      "message": "[Worker] Processing job: \"Director, Revenue Operations\" at Qventus",
+      "type": "info"
+    },
+    {
+      "timestamp": "12:49:15 PM",
+      "message": "[Worker] Skipped \"Sr. Manager, Product Marketing (Fintech) - US\" at Jobber (Match score 49% < min threshold 65%)",
+      "type": "warn"
+    },
+    {
+      "timestamp": "12:49:15 PM",
+      "message": "[Worker] Processing job: \"Sr. Manager, Product Marketing (Fintech) - US\" at Jobber",
+      "type": "info"
+    },
+    {
+      "timestamp": "12:49:11 PM",
+      "message": "[Worker] Skipped \"Enterprise Growth Account Director – Financial Services\" at Demandbase, Inc. (Match score 49% < min threshold 65%)",
+      "type": "warn"
+    },
+    {
+      "timestamp": "12:49:11 PM",
+      "message": "[Worker] Processing job: \"Enterprise Growth Account Director – Financial Services\" at Demandbase, Inc.",
+      "type": "info"
+    },
+    {
+      "timestamp": "12:49:07 PM",
+      "message": "[Worker] Skipped \"Director of Product Marketing\" at ActiveCampaign (Match score 49% < min threshold 65%)",
+      "type": "warn"
+    },
+    {
+      "timestamp": "12:49:07 PM",
+      "message": "[Worker] Processing job: \"Director of Product Marketing\" at ActiveCampaign",
+      "type": "info"
+    },
+    {
+      "timestamp": "12:49:03 PM",
+      "message": "[Worker] Skipped \"Principal Revenue Operations Manager\" at Jobber (Match score 49% < min threshold 65%)",
+      "type": "warn"
+    },
+    {
+      "timestamp": "12:49:03 PM",
+      "message": "[Worker] Processing job: \"Principal Revenue Operations Manager\" at Jobber",
+      "type": "info"
+    },
+    {
+      "timestamp": "12:48:59 PM",
+      "message": "[Worker] Skipped \"Growth Account Director, Enterprise\" at Demandbase, Inc. (Match score 49% < min threshold 65%)",
+      "type": "warn"
+    },
+    {
+      "timestamp": "12:48:59 PM",
+      "message": "[Worker] Processing job: \"Growth Account Director, Enterprise\" at Demandbase, Inc.",
+      "type": "info"
+    },
+    {
+      "timestamp": "12:48:55 PM",
+      "message": "[Worker] Skipped \"Fullstack Engineer\" at Monks (Match score 49% < min threshold 65%)",
+      "type": "warn"
+    },
+    {
+      "timestamp": "12:48:55 PM",
+      "message": "[Worker] Processing job: \"Fullstack Engineer\" at Monks",
+      "type": "info"
+    },
+    {
+      "timestamp": "12:48:51 PM",
+      "message": "[Worker] Skipped \"Senior Brand Content Manager\" at Demandbase, Inc. (Match score 49% < min threshold 65%)",
+      "type": "warn"
+    },
+    {
+      "timestamp": "12:48:51 PM",
+      "message": "[Worker] Processing job: \"Senior Brand Content Manager\" at Demandbase, Inc.",
+      "type": "info"
+    },
+    {
+      "timestamp": "12:48:47 PM",
+      "message": "[Worker] Skipped \"SEO Director\" at ClickUp (Match score 49% < min threshold 65%)",
+      "type": "warn"
+    },
+    {
+      "timestamp": "12:48:47 PM",
+      "message": "[Worker] Processing job: \"SEO Director\" at ClickUp",
+      "type": "info"
+    },
+    {
+      "timestamp": "12:48:43 PM",
+      "message": "[Worker] Skipped \"Bulgarian SEO Specialist\" at Welo Global (Match score 49% < min threshold 65%)",
+      "type": "warn"
+    },
+    {
+      "timestamp": "12:48:43 PM",
+      "message": "[Worker] Processing job: \"Bulgarian SEO Specialist\" at Welo Global",
+      "type": "info"
+    },
+    {
+      "timestamp": "12:48:39 PM",
+      "message": "[Worker] Skipped \"SEO/ASO Manager\" at Life360 (Match score 49% < min threshold 65%)",
+      "type": "warn"
+    },
+    {
+      "timestamp": "12:48:39 PM",
+      "message": "[Worker] Processing job: \"SEO/ASO Manager\" at Life360",
+      "type": "info"
+    },
+    {
+      "timestamp": "12:48:35 PM",
+      "message": "[Worker] Skipped \"SEO/AEO Content Specialist (English Native) — Contract\" at Cloudinary (Match score 49% < min threshold 65%)",
+      "type": "warn"
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+Harman is looking for a Full Stack Developer for web applications & IoT dashboards. Tech stack: React.js, Node.js / PHP, MySQL, REST APIs, and Linux server management.

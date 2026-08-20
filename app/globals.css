@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: #f8fafc;
+  color: #0f172a;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+/* Clean Light Mode CSS Overrides */
+body.light-theme {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+body.light-theme .bg-slate-950 {
+  background-color: #f8fafc !important;
+}
+
+body.light-theme .bg-slate-900 {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+
+body.light-theme .bg-slate-800 {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
+
+body.light-theme .text-white {
+  color: #0f172a !important;
+}
+
+body.light-theme .text-slate-100 {
+  color: #1e293b !important;
+}
+
+body.light-theme .text-slate-300 {
+  color: #334155 !important;
+}
+
+body.light-theme .text-slate-400 {
+  color: #64748b !important;
+}
+
+body.light-theme .border-slate-800 {
+  border-color: #e2e8f0 !important;
+}
+
+body.light-theme .border-slate-700 {
+  border-color: #cbd5e1 !important;
+}
+
+body.dark-theme {
+  background-color: #090d16;
+  color: #f8fafc;
+}
