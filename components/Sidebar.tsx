@@ -21,6 +21,13 @@ export default function Sidebar() {
       if (stored && stored.trim()) {
         setActiveUserId(stored.trim());
       }
+      const storedUsers = localStorage.getItem('hunt_available_users');
+      if (storedUsers) {
+        const parsed = JSON.parse(storedUsers);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setAvailableUsers(parsed);
+        }
+      }
     } catch {}
 
     fetch('/api/user-session')
@@ -32,8 +39,14 @@ export default function Sidebar() {
             localStorage.setItem('hunt_active_user_id', data.activeUserId);
           } catch {}
         }
-        if (data.availableUsers) {
-          setAvailableUsers(data.availableUsers);
+        if (data.availableUsers && Array.isArray(data.availableUsers)) {
+          setAvailableUsers((prev) => {
+            const merged = Array.from(new Set([...prev, ...data.availableUsers]));
+            try {
+              localStorage.setItem('hunt_available_users', JSON.stringify(merged));
+            } catch {}
+            return merged;
+          });
         }
       })
       .catch(() => {});
@@ -56,8 +69,15 @@ export default function Sidebar() {
 
   const handleSwitchUser = async (userId: string) => {
     const clean = userId.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+    
+    // Update local state & localStorage immediately
+    const updatedUsers = Array.from(new Set([...availableUsers, clean]));
+    setAvailableUsers(updatedUsers);
+    setActiveUserId(clean);
+
     try {
       localStorage.setItem('hunt_active_user_id', clean);
+      localStorage.setItem('hunt_available_users', JSON.stringify(updatedUsers));
       document.cookie = `hunt_user_id=${clean}; path=/; max-age=2592000; SameSite=Lax`;
     } catch {}
 
@@ -78,6 +98,8 @@ export default function Sidebar() {
       return;
     }
     const clean = newUserIdInput.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+    setShowNewUserModal(false);
+    setNewUserIdInput('');
     await handleSwitchUser(clean);
   };
 

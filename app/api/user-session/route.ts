@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import fs from 'fs';
 import path from 'path';
-import { getActiveUserId, getWritableBaseDir } from '@/lib/db';
+import { getActiveUserId, getWritableBaseDir, getDB } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +24,10 @@ export async function GET() {
     }
   } catch {}
 
+  if (!availableUsers.includes(activeUserId)) {
+    availableUsers.push(activeUserId);
+  }
+
   return NextResponse.json({ activeUserId, availableUsers });
 }
 
@@ -36,6 +40,9 @@ export async function POST(req: Request) {
 
     const cleanId = userId.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
     
+    // Ensure DB directory and file exists for this cleanId
+    getDB(cleanId);
+
     // Set HTTP cookie valid for 30 days
     const cookieStore = cookies();
     cookieStore.set('hunt_user_id', cleanId, {
