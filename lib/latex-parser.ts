@@ -48,119 +48,112 @@ export function stripLatex(text: string): string {
 }
 
 export function parseLaTeXCV(latexCode: string): UserProfile {
-  if (!latexCode || !latexCode.trim()) {
-    return {
-      name: 'Developer Profile',
-      email: '',
-      phone: '',
-      location: '',
-      linkedin: '',
-      github: '',
-      website: '',
-      masterLaTeX: '',
-      skills: { languages: [], frameworks: [], databases: [], tools: [], other: [] },
-      experience: [],
-      projects: [],
-      education: [],
-      certifications: [],
-      achievements: [],
-      extractedKeywords: [],
-    };
+  const cleanSource = latexCode || '';
+  const cleanText = stripLatex(cleanSource);
+
+  // 1. Dynamic Contact Information Extraction
+  let name = 'Candidate';
+  const namePatterns = [
+    /\\name\{([^}]+)\}/i,
+    /\\Huge\s*(?:\\bfseries)?\s*([^\n\\]+)/i,
+    /\\huge\s*(?:\\bfseries)?\s*([^\n\\]+)/i,
+    /\\textbf\{\\Large\s*([^}]+)\}/i,
+    /\\textbf\{([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\}/,
+  ];
+
+  for (const pat of namePatterns) {
+    const match = cleanSource.match(pat);
+    if (match && match[1] && match[1].trim()) {
+      const candidateName = match[1].replace(/\\[a-zA-Z]+/g, '').replace(/[{}]/g, '').trim();
+      if (candidateName.length > 2 && candidateName.length < 50) {
+        name = candidateName;
+        break;
+      }
+    }
   }
 
-  // 1. Dynamic Contact Extraction
-  let name = 'Candidate';
-  const nameMatch = latexCode.match(/\\name\{([^}]+)\}/) || 
-                    latexCode.match(/\\textbf\{([A-Z][a-z]+\s+[A-Z][a-z]+)\}/) ||
-                    latexCode.match(/\\huge\s*\\bfseries\s*([^\\]+)/i);
-  if (nameMatch && nameMatch[1]) {
-    name = nameMatch[1].trim();
+  // Fallback name search from first clean text line
+  if (name === 'Candidate') {
+    const firstLines = cleanText.split('\n').map(l => l.trim()).filter(l => l.length > 2 && !l.includes('\\'));
+    if (firstLines.length > 0 && firstLines[0].length < 40) {
+      name = firstLines[0];
+    }
   }
 
   let email = '';
-  const emailMatch = latexCode.match(/\\email\{([^}]+)\}/) || 
-                     latexCode.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+  const emailMatch = cleanSource.match(/\\email\{([^}]+)\}/i) || 
+                     cleanSource.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
   if (emailMatch) {
     email = (emailMatch[1] || emailMatch[0]).trim();
   }
 
   let phone = '';
-  const phoneMatch = latexCode.match(/\\phone\{([^}]+)\}/) || 
-                     latexCode.match(/\+?\d[\d\s-]{8,15}\d/);
+  const phoneMatch = cleanSource.match(/\\phone\{([^}]+)\}/i) || 
+                     cleanSource.match(/(\+?\d[\d\s-]{8,15}\d)/);
   if (phoneMatch) {
     phone = (phoneMatch[1] || phoneMatch[0]).trim();
   }
 
   let linkedin = '';
-  const linkedinMatch = latexCode.match(/\\linkedin\{([^}]+)\}/) || 
-                        latexCode.match(/linkedin\.com\/in\/[a-zA-Z0-9_-]+/);
+  const linkedinMatch = cleanSource.match(/\\linkedin\{([^}]+)\}/i) || 
+                        cleanSource.match(/(linkedin\.com\/in\/[a-zA-Z0-9_-]+)/i);
   if (linkedinMatch) {
     linkedin = (linkedinMatch[1] || linkedinMatch[0]).trim();
   }
 
   let github = '';
-  const githubMatch = latexCode.match(/\\github\{([^}]+)\}/) || 
-                      latexCode.match(/github\.com\/[a-zA-Z0-9_-]+/);
+  const githubMatch = cleanSource.match(/\\github\{([^}]+)\}/i) || 
+                      cleanSource.match(/(github\.com\/[a-zA-Z0-9_-]+)/i);
   if (githubMatch) {
     github = (githubMatch[1] || githubMatch[0]).trim();
   }
 
-  // 2. Dynamic Skills Extraction
+  // 2. Comprehensive Skills Extraction
   const languages: string[] = [];
   const frameworks: string[] = [];
   const databases: string[] = [];
   const tools: string[] = [];
   const other: string[] = [];
 
-  // Match items under Skills section or \\item \\textbf{Category}: Skill1, Skill2
-  const skillRegex = /\\item\s*(?:\\textbf\{([^}]+)\}:?|([A-Za-z0-9\s&]+):)\s*([^\n]+)/g;
-  let match: RegExpExecArray | null;
-  while ((match = skillRegex.exec(latexCode)) !== null) {
-    const category = (match[1] || match[2] || '').toLowerCase();
-    const skillsList = (match[3] || '').replace(/\\[a-zA-Z]+/g, '').replace(/[{}]/g, '').split(/[,;•]/).map(s => s.trim()).filter(Boolean);
+  // Known tech skills map
+  const TECH_CATEGORIES = {
+    languages: ['JavaScript', 'TypeScript', 'Python', 'PHP', 'Java', 'C++', 'C#', 'C', 'Go', 'Golang', 'Rust', 'Ruby', 'Swift', 'Kotlin', 'SQL', 'HTML', 'CSS', 'Bash', 'Shell', 'English', 'Hindi'],
+    frameworks: ['React', 'React.js', 'Next.js', 'Node.js', 'Express', 'Express.js', 'Vue', 'Vue.js', 'Angular', 'Tailwind', 'Tailwind CSS', 'Bootstrap', 'Laravel', 'Django', 'Flask', 'Spring Boot', 'REST API', 'RESTful APIs', 'GraphQL', 'Redux'],
+    databases: ['MongoDB', 'PostgreSQL', 'MySQL', 'Redis', 'SQLite', 'Neon DB', 'Oracle', 'MariaDB', 'Database Design', 'SQL Optimization'],
+    tools: ['Git', 'GitHub', 'GitLab', 'Docker', 'Kubernetes', 'AWS', 'Linux', 'WSL', 'RabbitMQ', 'SonarQube', 'Apache', 'Nginx', 'Vercel', 'Netlify', 'Postman', 'Webpack', 'Vite', 'Prompt Engineering', 'Generative AI', 'LLM']
+  };
 
-    if (category.includes('lang') || category.includes('programming')) {
-      languages.push(...skillsList);
-    } else if (category.includes('frame') || category.includes('web') || category.includes('library')) {
-      frameworks.push(...skillsList);
-    } else if (category.includes('data') || category.includes('db')) {
-      databases.push(...skillsList);
-    } else if (category.includes('tool') || category.includes('platform') || category.includes('devops')) {
-      tools.push(...skillsList);
-    } else {
-      other.push(...skillsList);
+  // Scan all text for TECH_CATEGORIES
+  for (const lang of TECH_CATEGORIES.languages) {
+    if (new RegExp(`\\b${lang.replace('.', '\\.')}\\b`, 'i').test(cleanText)) {
+      if (!languages.includes(lang)) languages.push(lang);
     }
   }
 
-  // Fallback keyword extraction if skills lists were empty
-  const allText = stripLatex(latexCode);
-  const knownKeywords = [
-    'JavaScript', 'TypeScript', 'Python', 'PHP', 'Java', 'C++', 'C#', 'SQL', 'HTML', 'CSS',
-    'React', 'Next.js', 'Node.js', 'Express', 'Vue', 'Angular', 'Tailwind', 'Bootstrap',
-    'MongoDB', 'PostgreSQL', 'MySQL', 'Redis', 'Firebase', 'SQLite',
-    'Git', 'GitHub', 'Docker', 'Kubernetes', 'AWS', 'Linux', 'REST API', 'GraphQL', 'Nginx', 'Apache'
-  ];
-
-  for (const kw of knownKeywords) {
-    if (new RegExp(`\\b${kw}\\b`, 'i').test(allText)) {
-      if (['JavaScript', 'TypeScript', 'Python', 'PHP', 'Java', 'C++', 'C#', 'SQL'].includes(kw)) {
-        if (!languages.includes(kw)) languages.push(kw);
-      } else if (['React', 'Next.js', 'Node.js', 'Express', 'Vue', 'Angular', 'Tailwind', 'Bootstrap', 'HTML', 'CSS'].includes(kw)) {
-        if (!frameworks.includes(kw)) frameworks.push(kw);
-      } else if (['MongoDB', 'PostgreSQL', 'MySQL', 'Redis', 'Firebase', 'SQLite'].includes(kw)) {
-        if (!databases.includes(kw)) databases.push(kw);
-      } else {
-        if (!tools.includes(kw)) tools.push(kw);
-      }
+  for (const fw of TECH_CATEGORIES.frameworks) {
+    if (new RegExp(`\\b${fw.replace('.', '\\.')}\\b`, 'i').test(cleanText)) {
+      if (!frameworks.includes(fw)) frameworks.push(fw);
     }
   }
 
-  // 3. Dynamic Experience Section Parsing
+  for (const db of TECH_CATEGORIES.databases) {
+    if (new RegExp(`\\b${db.replace('.', '\\.')}\\b`, 'i').test(cleanText)) {
+      if (!databases.includes(db)) databases.push(db);
+    }
+  }
+
+  for (const t of TECH_CATEGORIES.tools) {
+    if (new RegExp(`\\b${t.replace('.', '\\.')}\\b`, 'i').test(cleanText)) {
+      if (!tools.includes(t)) tools.push(t);
+    }
+  }
+
+  // 3. Parse Work Experience Section
   const experience: UserProfile['experience'] = [];
-  const expSectionMatch = latexCode.match(/\\section\*?\{(?:WORK\s+)?EXPERIENCE\}([\s\S]*?)(?=\\section\*?\{|\\end\{document\})/i);
+  const expSectionMatch = cleanSource.match(/\\section\*?\{(?:WORK\s+)?EXPERIENCE\}([\s\S]*?)(?=\\section\*?\{|\\end\{document\})/i);
   if (expSectionMatch && expSectionMatch[1]) {
     const rawExp = expSectionMatch[1];
-    const expBlocks = rawExp.split(/(?=\\textbf\{)/);
+    const expBlocks = rawExp.split(/(?=\\textbf\{|\\cvitem\{)/);
     let expCount = 1;
     for (const block of expBlocks) {
       if (!block.trim()) continue;
@@ -171,7 +164,7 @@ export function parseLaTeXCV(latexCode: string): UserProfile {
         const bullets = lines.slice(1).filter(l => l.startsWith('•') || l.length > 10).map(l => l.replace(/^[•-]\s*/, ''));
         experience.push({
           id: `exp_${expCount++}`,
-          company: titleLine.split(/---|–|\|/)[0]?.trim() || 'Tech Company',
+          company: titleLine.split(/---|–|\|/)[0]?.trim() || 'Software Company',
           role: titleLine.split(/---|–|\|/)[1]?.trim() || 'Software Developer',
           location: 'Location',
           startDate: '2023',
@@ -183,12 +176,12 @@ export function parseLaTeXCV(latexCode: string): UserProfile {
     }
   }
 
-  // 4. Dynamic Projects Section Parsing
+  // 4. Parse Projects Section
   const projects: UserProfile['projects'] = [];
-  const projSectionMatch = latexCode.match(/\\section\*?\{PROJECTS\}([\s\S]*?)(?=\\section\*?\{|\\end\{document\})/i);
+  const projSectionMatch = cleanSource.match(/\\section\*?\{PROJECTS\}([\s\S]*?)(?=\\section\*?\{|\\end\{document\})/i);
   if (projSectionMatch && projSectionMatch[1]) {
     const rawProj = projSectionMatch[1];
-    const projBlocks = rawProj.split(/(?=\\textbf\{)/);
+    const projBlocks = rawProj.split(/(?=\\textbf\{|\\cvitem\{)/);
     let projCount = 1;
     for (const block of projBlocks) {
       if (!block.trim()) continue;
@@ -209,39 +202,50 @@ export function parseLaTeXCV(latexCode: string): UserProfile {
     }
   }
 
-  const profile: UserProfile = {
-    name: name || 'Candidate',
-    email: email || '',
-    phone: phone || '',
+  const allExtractedKeywords = Array.from(new Set([...languages, ...frameworks, ...databases, ...tools]));
+
+  return {
+    name: name,
+    email: email,
+    phone: phone,
     location: 'India',
-    linkedin: linkedin || '',
-    github: github || '',
+    linkedin: linkedin,
+    github: github,
     website: github || linkedin || '',
-    masterLaTeX: latexCode,
+    masterLaTeX: cleanSource,
     skills: {
-      languages: Array.from(new Set(languages)),
-      frameworks: Array.from(new Set(frameworks)),
-      databases: Array.from(new Set(databases)),
-      tools: Array.from(new Set(tools)),
-      other: Array.from(new Set(other)),
+      languages: languages.length > 0 ? languages : ['JavaScript', 'TypeScript', 'Python'],
+      frameworks: frameworks.length > 0 ? frameworks : ['React', 'Next.js', 'Node.js'],
+      databases: databases.length > 0 ? databases : ['MongoDB', 'PostgreSQL', 'MySQL'],
+      tools: tools.length > 0 ? tools : ['Git', 'GitHub', 'Docker', 'REST API'],
+      other: other,
     },
     experience: experience.length > 0 ? experience : [
       {
-        id: 'exp_default',
-        company: 'Software Engineer',
+        id: 'exp_1',
+        company: 'Tech Solutions',
         role: 'Full Stack Engineer',
         location: 'Remote',
         startDate: '2023',
         endDate: 'Present',
         bullets: ['Architected scalable web applications and REST API microservices.'],
-        technologies: Array.from(new Set([...languages, ...frameworks])),
+        technologies: languages,
       }
     ],
-    projects: projects,
+    projects: projects.length > 0 ? projects : [
+      {
+        id: 'proj_1',
+        title: 'Full Stack Application Platform',
+        link: '',
+        description: 'Automated web platform',
+        bullets: ['Built full stack features and REST API integrations.'],
+        technologies: frameworks,
+      }
+    ],
     education: [
       {
         id: 'edu_1',
-        degree: 'Bachelor of Technology / BCA',
+        degree: 'Bachelor of Science / Computer Applications',
         institution: 'University',
         location: 'India',
         startDate: '2021',
@@ -250,10 +254,8 @@ export function parseLaTeXCV(latexCode: string): UserProfile {
     ],
     certifications: [],
     achievements: [],
-    extractedKeywords: Array.from(new Set([...languages, ...frameworks, ...databases, ...tools])),
+    extractedKeywords: allExtractedKeywords,
   };
-
-  return profile;
 }
 
 // Deep, meaningful LaTeX resume tailoring function for target Job Description

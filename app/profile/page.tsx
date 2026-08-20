@@ -97,7 +97,8 @@ export default function ProfilePage() {
         setProfile(data.profile);
         if (data.profile.templates) setTemplates(data.profile.templates);
         setSaved(true);
-        alert('Master LaTeX Resume successfully parsed and saved!');
+        setActiveTab('skills');
+        alert(`Master LaTeX Resume for "${data.profile.name}" successfully parsed! Extracted ${data.profile.extractedKeywords?.length || 0} skills & technologies.`);
       }
     } catch {
       alert('Error parsing LaTeX code.');
@@ -155,7 +156,7 @@ export default function ProfilePage() {
         <div className="flex items-center gap-3">
           {saved && (
             <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
-              <CheckCircle2 className="w-4 h-4" /> Active CV Saved
+              <CheckCircle2 className="w-4 h-4" /> Active CV Saved & Parsed
             </span>
           )}
           <button
@@ -164,7 +165,7 @@ export default function ProfilePage() {
             className="px-4 py-2.5 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white font-medium rounded-xl text-sm transition-all flex items-center gap-2 shadow-lg shadow-sky-600/30"
           >
             <Sparkles className="w-4 h-4" />
-            {parsing ? 'Saving & Parsing...' : 'Save & Active Template'}
+            {parsing ? 'Saving & Parsing...' : '⚡ Apply, Save & Parse Master LaTeX Resume'}
           </button>
         </div>
       </div>
@@ -302,7 +303,15 @@ export default function ProfilePage() {
 
       {activeTab === 'skills' && (
         <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-6">
-          <h2 className="text-base font-bold text-white">Extracted Candidate Profile Skills</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-bold text-white">Extracted Candidate Profile Skills ({profile?.extractedKeywords?.length || 0})</h2>
+            <button
+              onClick={() => setActiveTab('latex')}
+              className="text-xs text-sky-400 hover:underline flex items-center gap-1 font-semibold"
+            >
+              <Code2 className="w-3.5 h-3.5" /> Edit LaTeX Code
+            </button>
+          </div>
 
           {profile ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
