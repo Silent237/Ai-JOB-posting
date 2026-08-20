@@ -37,41 +37,13 @@ export default function JobDiscoveryPage() {
   };
 
   const fetchWorkerState = () => {
-    let cachedState: WorkerState | null = null;
-    try {
-      const cached = localStorage.getItem('hunt_worker_state_cache');
-      if (cached) {
-        cachedState = JSON.parse(cached);
-        if (cachedState) setWorkerState(cachedState);
-      }
-    } catch {}
-
     fetch('/api/worker')
       .then(res => res.json())
       .then(data => {
         if (data.state) {
-          let finalState = data.state;
-          // Protect against serverless container memory wiping queuedJobs upon refresh
-          if ((!data.state.queuedJobs || data.state.queuedJobs.length === 0) && cachedState && cachedState.queuedJobs && cachedState.queuedJobs.length > 0) {
-            finalState = {
-              ...data.state,
-              queuedJobs: cachedState.queuedJobs,
-              processedCount: Math.max(data.state.processedCount || 0, cachedState.processedCount || 0),
-            };
-            // Re-sync server container with cached queuedJobs
-            fetch('/api/jobs', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'enqueue', jobs: cachedState.queuedJobs }),
-            }).catch(() => {});
-          }
-
-          setWorkerState(finalState);
-          setMinScore(finalState.minMatchScore);
-          setAutoSend(Boolean(finalState.autoSendEmail));
-          try {
-            localStorage.setItem('hunt_worker_state_cache', JSON.stringify(finalState));
-          } catch {}
+          setWorkerState(data.state);
+          setMinScore(data.state.minMatchScore);
+          setAutoSend(Boolean(data.state.autoSendEmail));
         }
       })
       .catch(() => {});
@@ -98,7 +70,7 @@ export default function JobDiscoveryPage() {
     if (workerState?.isRunning && workerState.queuedJobs && workerState.queuedJobs.length > 0) {
       const timer = setTimeout(() => {
         handleProcessNext();
-      }, 3500);
+      }, 4500);
       return () => clearTimeout(timer);
     }
   }, [workerState?.isRunning, workerState?.queuedJobs?.length]);
@@ -113,10 +85,7 @@ export default function JobDiscoveryPage() {
         body: JSON.stringify({ action: 'toggle', isRunning: nextRunning }),
       });
       const data = await res.json();
-      if (data.state) {
-        setWorkerState(data.state);
-        try { localStorage.setItem('hunt_worker_state_cache', JSON.stringify(data.state)); } catch {}
-      }
+      if (data.state) setWorkerState(data.state);
     } catch {
       alert('Failed to toggle worker.');
     }
@@ -132,10 +101,7 @@ export default function JobDiscoveryPage() {
         body: JSON.stringify({ action: 'set_auto_send', autoSendEmail: nextAutoSend }),
       });
       const data = await res.json();
-      if (data.state) {
-        setWorkerState(data.state);
-        try { localStorage.setItem('hunt_worker_state_cache', JSON.stringify(data.state)); } catch {}
-      }
+      if (data.state) setWorkerState(data.state);
     } catch {}
   };
 
@@ -148,10 +114,7 @@ export default function JobDiscoveryPage() {
         body: JSON.stringify({ action: 'set_score', minMatchScore: val }),
       });
       const data = await res.json();
-      if (data.state) {
-        setWorkerState(data.state);
-        try { localStorage.setItem('hunt_worker_state_cache', JSON.stringify(data.state)); } catch {}
-      }
+      if (data.state) setWorkerState(data.state);
     } catch {}
   };
 
@@ -165,10 +128,7 @@ export default function JobDiscoveryPage() {
         body: JSON.stringify({ action: 'enqueue', jobs: [finalJob] }),
       });
       const data = await res.json();
-      if (data.state) {
-        setWorkerState(data.state);
-        try { localStorage.setItem('hunt_worker_state_cache', JSON.stringify(data.state)); } catch {}
-      }
+      if (data.state) setWorkerState(data.state);
     } catch {
       alert('Failed to queue job.');
     }
@@ -185,7 +145,6 @@ export default function JobDiscoveryPage() {
       const data = await res.json();
       if (data.state) {
         setWorkerState(data.state);
-        try { localStorage.setItem('hunt_worker_state_cache', JSON.stringify(data.state)); } catch {}
         alert(`⚡ Successfully queued all ${jobs.length} jobs! Worker queue count is now ${data.state.queuedJobs.length}`);
       } else {
         fetchWorkerState();
@@ -207,7 +166,6 @@ export default function JobDiscoveryPage() {
       const data = await res.json();
       if (data.state) {
         setWorkerState(data.state);
-        try { localStorage.setItem('hunt_worker_state_cache', JSON.stringify(data.state)); } catch {}
         setUrlInput('');
       }
     } catch {
@@ -229,7 +187,6 @@ export default function JobDiscoveryPage() {
       const data = await res.json();
       if (data.state) {
         setWorkerState(data.state);
-        try { localStorage.setItem('hunt_worker_state_cache', JSON.stringify(data.state)); } catch {}
         setBulkInput('');
       }
     } catch {
@@ -247,10 +204,7 @@ export default function JobDiscoveryPage() {
         body: JSON.stringify({ action: 'process_next' }),
       });
       const data = await res.json();
-      if (data.state) {
-        setWorkerState(data.state);
-        try { localStorage.setItem('hunt_worker_state_cache', JSON.stringify(data.state)); } catch {}
-      }
+      if (data.state) setWorkerState(data.state);
     } catch {}
   };
 
