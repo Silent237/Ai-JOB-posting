@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Mail, Send, CheckCircle2, AlertCircle, Clock, Sparkles, UserCheck, RefreshCw, Key, Settings, ShieldCheck, Edit3, Save, Plus, Trash2, User, X } from 'lucide-react';
+import { Mail, Send, CheckCircle2, AlertCircle, Clock, Sparkles, UserCheck, RefreshCw, Key, Settings, ShieldCheck, Edit3, Save, Plus, Trash2, User, X, Sliders } from 'lucide-react';
 import { SenderAccount } from '@/lib/db';
 
 interface EmailQueueItem {
@@ -19,6 +19,7 @@ interface EmailQueueItem {
 export default function EmailsPage() {
   const [emailQueue, setEmailQueue] = useState<EmailQueueItem[]>([]);
   const [activity, setActivity] = useState({ applicationsToday: 0, emailsSentToday: 0, dailyEmailLimit: 50 });
+  const [limitInput, setLimitInput] = useState<number>(50);
 
   // Multi Sender Accounts state
   const [senderAccounts, setSenderAccounts] = useState<SenderAccount[]>([]);
@@ -53,7 +54,10 @@ export default function EmailsPage() {
       .then(res => res.json())
       .then(data => {
         if (data.emailQueue) setEmailQueue(data.emailQueue);
-        if (data.activity) setActivity(data.activity);
+        if (data.activity) {
+          setActivity(data.activity);
+          setLimitInput(data.activity.dailyEmailLimit || 50);
+        }
       })
       .catch(() => {});
 
@@ -77,6 +81,23 @@ export default function EmailsPage() {
   useEffect(() => {
     fetchEmailData();
   }, []);
+
+  const handleUpdateDailyLimit = async () => {
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'set_daily_limit', dailyEmailLimit: limitInput }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchEmailData();
+        alert(`Daily email send limit updated to ${limitInput} emails/day!`);
+      }
+    } catch {
+      alert('Failed to update daily email limit.');
+    }
+  };
 
   const handleOpenAddAccount = () => {
     setEditingAccountId(null);
@@ -290,15 +311,32 @@ export default function EmailsPage() {
             Daily Application & Multi-Sender Email Dispatcher
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Active Sender Account: <strong className="text-sky-300">{activeAccount ? `${activeAccount.name} (${activeAccount.user})` : 'Not Configured'}</strong> • Cap set at {activity.dailyEmailLimit} emails/day for maximum deliverability.
+            Active Sender Account: <strong className="text-sky-300">{activeAccount ? `${activeAccount.name} (${activeAccount.user})` : 'Not Configured'}</strong> • Set custom daily email cap below.
           </p>
         </div>
 
-        {/* Daily Quota Counter */}
+        {/* Daily Quota Counter & Custom Limit Input */}
         <div className="flex items-center gap-4 bg-slate-950 p-4 rounded-xl border border-slate-800">
           <div>
-            <div className="text-xs font-semibold text-slate-400 uppercase">Daily Limit</div>
-            <div className="text-xl font-bold text-white">{activity.dailyEmailLimit} Emails</div>
+            <div className="text-xs font-semibold text-slate-400 uppercase flex items-center gap-1">
+              <Sliders className="w-3 h-3 text-sky-400" /> Daily Email Limit
+            </div>
+            <div className="flex items-center gap-1.5 mt-1">
+              <input
+                type="number"
+                value={limitInput}
+                onChange={(e) => setLimitInput(Number(e.target.value))}
+                min={5}
+                max={500}
+                className="w-16 bg-slate-900 text-xs font-bold text-white px-2 py-1 rounded border border-slate-800 focus:outline-none focus:border-sky-500 text-center"
+              />
+              <button
+                onClick={handleUpdateDailyLimit}
+                className="px-2.5 py-1 bg-sky-600 hover:bg-sky-500 text-white text-[11px] font-bold rounded"
+              >
+                Save
+              </button>
+            </div>
           </div>
           <div className="h-8 w-px bg-slate-800" />
           <div>
@@ -308,7 +346,7 @@ export default function EmailsPage() {
           <div className="h-8 w-px bg-slate-800" />
           <div>
             <div className="text-xs font-semibold text-slate-400 uppercase">Remaining</div>
-            <div className="text-xl font-bold text-sky-400">{activity.dailyEmailLimit - activity.emailsSentToday}</div>
+            <div className="text-xl font-bold text-sky-400">{Math.max(0, activity.dailyEmailLimit - activity.emailsSentToday)}</div>
           </div>
         </div>
       </div>

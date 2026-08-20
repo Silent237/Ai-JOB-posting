@@ -3,12 +3,11 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, FileText, PlusCircle, Briefcase, Mail, CheckCircle2, Sparkles, Bot, Users, Sun, Moon } from 'lucide-react';
+import { LayoutDashboard, FileText, PlusCircle, Briefcase, Mail, CheckCircle2, Sparkles, Bot, Users } from 'lucide-react';
 
 export default function Sidebar() {
   const pathname = usePathname();
   const [stats, setStats] = useState({ applicationsToday: 0, emailsSentToday: 0, dailyEmailLimit: 50 });
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
     fetch('/api/emails')
@@ -18,31 +17,6 @@ export default function Sidebar() {
       })
       .catch(() => {});
   }, [pathname]);
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' || 'light';
-    setTheme(savedTheme);
-    if (savedTheme === 'light') {
-      document.body.classList.add('light-theme');
-      document.body.classList.remove('dark-theme');
-    } else {
-      document.body.classList.add('dark-theme');
-      document.body.classList.remove('light-theme');
-    }
-  }, []);
-
-  const toggleTheme = () => {
-    const nextTheme = theme === 'light' ? 'dark' : 'light';
-    setTheme(nextTheme);
-    localStorage.setItem('theme', nextTheme);
-    if (nextTheme === 'light') {
-      document.body.classList.add('light-theme');
-      document.body.classList.remove('dark-theme');
-    } else {
-      document.body.classList.add('dark-theme');
-      document.body.classList.remove('light-theme');
-    }
-  };
 
   const navItems = [
     { label: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -55,27 +29,17 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className="w-64 bg-slate-900 text-slate-100 flex flex-col justify-between min-h-screen border-r border-slate-800 transition-colors">
+    <aside className="w-64 bg-slate-900 text-slate-100 flex flex-col justify-between min-h-screen border-r border-slate-800">
       <div>
         {/* Brand Header */}
-        <div className="p-5 border-b border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-sky-600 rounded-lg text-white">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="font-bold text-base text-white leading-tight">AI Job Dashboard</h1>
-              <p className="text-xs text-sky-400 font-medium">User-Centric Suite</p>
-            </div>
+        <div className="p-5 border-b border-slate-800 flex items-center gap-3">
+          <div className="p-2 bg-sky-600 rounded-lg text-white">
+            <Sparkles className="w-5 h-5" />
           </div>
-
-          <button
-            onClick={toggleTheme}
-            title="Toggle Light/Dark Theme"
-            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all border border-slate-700"
-          >
-            {theme === 'light' ? <Moon className="w-4 h-4 text-indigo-400" /> : <Sun className="w-4 h-4 text-amber-400" />}
-          </button>
+          <div>
+            <h1 className="font-bold text-base text-white leading-tight">AI Job Dashboard</h1>
+            <p className="text-xs text-sky-400 font-medium">User-Centric Suite</p>
+          </div>
         </div>
 
         {/* Navigation Links */}
@@ -104,7 +68,7 @@ export default function Sidebar() {
       {/* Daily Limits Card */}
       <div className="p-4 m-3 bg-slate-800/80 rounded-xl border border-slate-700/60 space-y-3">
         <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
-          <span>Daily Email Limit</span>
+          <span>Daily Email Cap</span>
           <span className="text-sky-400">{stats.emailsSentToday} / {stats.dailyEmailLimit}</span>
         </div>
         <div className="w-full bg-slate-700 h-2 rounded-full overflow-hidden">
@@ -115,7 +79,7 @@ export default function Sidebar() {
         </div>
         <div className="flex items-center gap-2 text-xs text-slate-400">
           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-          <span>{stats.dailyEmailLimit - stats.emailsSentToday} email slots remaining today</span>
+          <span>{Math.max(0, stats.dailyEmailLimit - stats.emailsSentToday)} slots remaining today</span>
         </div>
       </div>
     </aside>

@@ -11,10 +11,16 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { action, senderAccount, senderAccountId, smtpConfig } = body;
+    const { action, senderAccount, senderAccountId, smtpConfig, dailyEmailLimit } = body;
     const db = getDB();
 
     if (!db.settings.senderAccounts) db.settings.senderAccounts = [];
+
+    if (action === 'set_daily_limit') {
+      db.settings.dailyEmailLimit = Number(dailyEmailLimit) || 50;
+      saveDB(db);
+      return NextResponse.json({ success: true, settings: db.settings });
+    }
 
     if (action === 'save_sender_account' && senderAccount) {
       const id = senderAccount.id || `sender_${Date.now()}`;

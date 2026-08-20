@@ -147,6 +147,7 @@ interface DatabaseSchema {
   settings: {
     apiKey?: string;
     theme?: 'light' | 'dark';
+    dailyEmailLimit?: number;
     googleDriveConnected: boolean;
     senderAccounts?: SenderAccount[];
     activeSenderAccountId?: string;
@@ -280,11 +281,12 @@ export function getDailyActivity(): DailyActivity {
   
   const applicationsToday = db.applications.filter((a) => a.createdAt.startsWith(todayStr)).length;
   const emailsSentToday = db.emailQueue.filter((e) => e.status === 'Sent' && e.sentAt?.startsWith(todayStr)).length;
-  
+  const limit = db.settings.dailyEmailLimit || 50;
+
   return {
     date: todayStr,
     applicationsToday,
     emailsSentToday,
-    dailyEmailLimit: 50,
+    dailyEmailLimit: limit,
   };
 }
