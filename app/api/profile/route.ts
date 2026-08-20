@@ -18,7 +18,8 @@ export async function POST(req: Request) {
 
     if (action === 'save_template' && masterLaTeX) {
       const parsed = parseLaTeXCV(masterLaTeX);
-      if (!parsed.templates) parsed.templates = [];
+      const existingTemplates = profile?.templates || [];
+      parsed.templates = existingTemplates;
 
       const targetId = templateId || `tpl_${Date.now()}`;
       const existingIdx = parsed.templates.findIndex((t) => t.id === targetId);
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
         id: targetId,
         title: templateTitle || 'Master Resume Template',
         latex: masterLaTeX,
-        isDefault: parsed.templates.length === 0 || targetId === parsed.activeTemplateId,
+        isDefault: parsed.templates.length === 0 || targetId === profile?.activeTemplateId,
       };
 
       if (existingIdx >= 0) {
@@ -55,6 +56,8 @@ export async function POST(req: Request) {
 
     if (masterLaTeX) {
       const parsed = parseLaTeXCV(masterLaTeX);
+      if (profile?.templates) parsed.templates = profile.templates;
+      if (profile?.activeTemplateId) parsed.activeTemplateId = profile.activeTemplateId;
       const saved = saveProfile(parsed);
       return NextResponse.json({ success: true, profile: saved });
     }

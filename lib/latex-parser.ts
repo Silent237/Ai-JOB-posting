@@ -48,145 +48,209 @@ export function stripLatex(text: string): string {
 }
 
 export function parseLaTeXCV(latexCode: string): UserProfile {
+  if (!latexCode || !latexCode.trim()) {
+    return {
+      name: 'Developer Profile',
+      email: '',
+      phone: '',
+      location: '',
+      linkedin: '',
+      github: '',
+      website: '',
+      masterLaTeX: '',
+      skills: { languages: [], frameworks: [], databases: [], tools: [], other: [] },
+      experience: [],
+      projects: [],
+      education: [],
+      certifications: [],
+      achievements: [],
+      extractedKeywords: [],
+    };
+  }
+
+  // 1. Dynamic Contact Extraction
+  let name = 'Candidate';
+  const nameMatch = latexCode.match(/\\name\{([^}]+)\}/) || 
+                    latexCode.match(/\\textbf\{([A-Z][a-z]+\s+[A-Z][a-z]+)\}/) ||
+                    latexCode.match(/\\huge\s*\\bfseries\s*([^\\]+)/i);
+  if (nameMatch && nameMatch[1]) {
+    name = nameMatch[1].trim();
+  }
+
+  let email = '';
+  const emailMatch = latexCode.match(/\\email\{([^}]+)\}/) || 
+                     latexCode.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+  if (emailMatch) {
+    email = (emailMatch[1] || emailMatch[0]).trim();
+  }
+
+  let phone = '';
+  const phoneMatch = latexCode.match(/\\phone\{([^}]+)\}/) || 
+                     latexCode.match(/\+?\d[\d\s-]{8,15}\d/);
+  if (phoneMatch) {
+    phone = (phoneMatch[1] || phoneMatch[0]).trim();
+  }
+
+  let linkedin = '';
+  const linkedinMatch = latexCode.match(/\\linkedin\{([^}]+)\}/) || 
+                        latexCode.match(/linkedin\.com\/in\/[a-zA-Z0-9_-]+/);
+  if (linkedinMatch) {
+    linkedin = (linkedinMatch[1] || linkedinMatch[0]).trim();
+  }
+
+  let github = '';
+  const githubMatch = latexCode.match(/\\github\{([^}]+)\}/) || 
+                      latexCode.match(/github\.com\/[a-zA-Z0-9_-]+/);
+  if (githubMatch) {
+    github = (githubMatch[1] || githubMatch[0]).trim();
+  }
+
+  // 2. Dynamic Skills Extraction
+  const languages: string[] = [];
+  const frameworks: string[] = [];
+  const databases: string[] = [];
+  const tools: string[] = [];
+  const other: string[] = [];
+
+  // Match items under Skills section or \\item \\textbf{Category}: Skill1, Skill2
+  const skillRegex = /\\item\s*(?:\\textbf\{([^}]+)\}:?|([A-Za-z0-9\s&]+):)\s*([^\n]+)/g;
+  let match: RegExpExecArray | null;
+  while ((match = skillRegex.exec(latexCode)) !== null) {
+    const category = (match[1] || match[2] || '').toLowerCase();
+    const skillsList = (match[3] || '').replace(/\\[a-zA-Z]+/g, '').replace(/[{}]/g, '').split(/[,;•]/).map(s => s.trim()).filter(Boolean);
+
+    if (category.includes('lang') || category.includes('programming')) {
+      languages.push(...skillsList);
+    } else if (category.includes('frame') || category.includes('web') || category.includes('library')) {
+      frameworks.push(...skillsList);
+    } else if (category.includes('data') || category.includes('db')) {
+      databases.push(...skillsList);
+    } else if (category.includes('tool') || category.includes('platform') || category.includes('devops')) {
+      tools.push(...skillsList);
+    } else {
+      other.push(...skillsList);
+    }
+  }
+
+  // Fallback keyword extraction if skills lists were empty
+  const allText = stripLatex(latexCode);
+  const knownKeywords = [
+    'JavaScript', 'TypeScript', 'Python', 'PHP', 'Java', 'C++', 'C#', 'SQL', 'HTML', 'CSS',
+    'React', 'Next.js', 'Node.js', 'Express', 'Vue', 'Angular', 'Tailwind', 'Bootstrap',
+    'MongoDB', 'PostgreSQL', 'MySQL', 'Redis', 'Firebase', 'SQLite',
+    'Git', 'GitHub', 'Docker', 'Kubernetes', 'AWS', 'Linux', 'REST API', 'GraphQL', 'Nginx', 'Apache'
+  ];
+
+  for (const kw of knownKeywords) {
+    if (new RegExp(`\\b${kw}\\b`, 'i').test(allText)) {
+      if (['JavaScript', 'TypeScript', 'Python', 'PHP', 'Java', 'C++', 'C#', 'SQL'].includes(kw)) {
+        if (!languages.includes(kw)) languages.push(kw);
+      } else if (['React', 'Next.js', 'Node.js', 'Express', 'Vue', 'Angular', 'Tailwind', 'Bootstrap', 'HTML', 'CSS'].includes(kw)) {
+        if (!frameworks.includes(kw)) frameworks.push(kw);
+      } else if (['MongoDB', 'PostgreSQL', 'MySQL', 'Redis', 'Firebase', 'SQLite'].includes(kw)) {
+        if (!databases.includes(kw)) databases.push(kw);
+      } else {
+        if (!tools.includes(kw)) tools.push(kw);
+      }
+    }
+  }
+
+  // 3. Dynamic Experience Section Parsing
+  const experience: UserProfile['experience'] = [];
+  const expSectionMatch = latexCode.match(/\\section\*?\{(?:WORK\s+)?EXPERIENCE\}([\s\S]*?)(?=\\section\*?\{|\\end\{document\})/i);
+  if (expSectionMatch && expSectionMatch[1]) {
+    const rawExp = expSectionMatch[1];
+    const expBlocks = rawExp.split(/(?=\\textbf\{)/);
+    let expCount = 1;
+    for (const block of expBlocks) {
+      if (!block.trim()) continue;
+      const cleanBlock = stripLatex(block);
+      const lines = cleanBlock.split('\n').map(l => l.trim()).filter(Boolean);
+      if (lines.length > 0) {
+        const titleLine = lines[0];
+        const bullets = lines.slice(1).filter(l => l.startsWith('•') || l.length > 10).map(l => l.replace(/^[•-]\s*/, ''));
+        experience.push({
+          id: `exp_${expCount++}`,
+          company: titleLine.split(/---|–|\|/)[0]?.trim() || 'Tech Company',
+          role: titleLine.split(/---|–|\|/)[1]?.trim() || 'Software Developer',
+          location: 'Location',
+          startDate: '2023',
+          endDate: 'Present',
+          bullets: bullets.length > 0 ? bullets : [titleLine],
+          technologies: [],
+        });
+      }
+    }
+  }
+
+  // 4. Dynamic Projects Section Parsing
+  const projects: UserProfile['projects'] = [];
+  const projSectionMatch = latexCode.match(/\\section\*?\{PROJECTS\}([\s\S]*?)(?=\\section\*?\{|\\end\{document\})/i);
+  if (projSectionMatch && projSectionMatch[1]) {
+    const rawProj = projSectionMatch[1];
+    const projBlocks = rawProj.split(/(?=\\textbf\{)/);
+    let projCount = 1;
+    for (const block of projBlocks) {
+      if (!block.trim()) continue;
+      const cleanBlock = stripLatex(block);
+      const lines = cleanBlock.split('\n').map(l => l.trim()).filter(Boolean);
+      if (lines.length > 0) {
+        const titleLine = lines[0];
+        const bullets = lines.slice(1).filter(l => l.startsWith('•') || l.length > 10).map(l => l.replace(/^[•-]\s*/, ''));
+        projects.push({
+          id: `proj_${projCount++}`,
+          title: titleLine,
+          link: '',
+          description: titleLine,
+          bullets: bullets.length > 0 ? bullets : [titleLine],
+          technologies: [],
+        });
+      }
+    }
+  }
+
   const profile: UserProfile = {
-    name: 'Vinayak Srivastava',
-    email: 'vinayaksrivastava063@gmail.com',
-    phone: '7275095741',
-    location: 'Lucknow, India',
-    linkedin: 'linkedin.com/in/vinayak-srivastava-silent',
-    github: 'github.com/Silent237',
-    website: 'https://github.com/Silent237',
+    name: name || 'Candidate',
+    email: email || '',
+    phone: phone || '',
+    location: 'India',
+    linkedin: linkedin || '',
+    github: github || '',
+    website: github || linkedin || '',
     masterLaTeX: latexCode,
     skills: {
-      languages: ['JavaScript', 'PHP', 'Python', 'Java', 'C', 'English', 'Hindi'],
-      frameworks: ['React.js', 'React Native', 'HTML5', 'CSS3', 'REST APIs', 'RESTful APIs'],
-      databases: ['MySQL', 'Neon DB', 'Database Design', 'SQL Optimization'],
-      tools: ['Git', 'GitHub', 'Git Bash', 'RabbitMQ', 'SonarQube', 'WSL', 'Linux', 'Apache Server'],
-      other: ['API Integration', 'ERP Systems', 'Dashboard Systems', 'Role-Based Access Control', 'Prompt Engineering', 'Generative AI'],
+      languages: Array.from(new Set(languages)),
+      frameworks: Array.from(new Set(frameworks)),
+      databases: Array.from(new Set(databases)),
+      tools: Array.from(new Set(tools)),
+      other: Array.from(new Set(other)),
     },
-    experience: [
+    experience: experience.length > 0 ? experience : [
       {
-        id: 'exp-1',
-        company: 'WeKnow Technologies',
-        role: 'Full Stack Developer',
-        location: 'India',
-        startDate: 'May 2025',
-        endDate: 'Present',
-        bullets: [
-          'Developing and maintaining secure and scalable government web applications using PHP, MySQL, HTML, CSS, and JavaScript.',
-          'Designing and implementing RESTful APIs to enable seamless communication between frontend interfaces and backend services.',
-          'Writing optimized SQL queries and stored procedures to efficiently handle large datasets and improve database performance.',
-          'Implementing backend business logic for government service platforms to support real-time digital workflows.',
-          'Debugging and resolving application issues to improve overall system stability and reliability.',
-          'Collaborating with cross-functional teams including developers, testers, and project managers, to deliver high-quality web solutions.',
-          'Enhancing application performance by optimizing backend processes and reducing response times.',
-          'Implementing validation, authentication mechanisms, and secure coding practices to ensure data integrity and system security.',
-          'Assisting in deployment and maintenance of web applications on production servers using Apache and Linux environments.'
-        ],
-        technologies: ['PHP', 'MySQL', 'JavaScript', 'HTML5', 'CSS3', 'Apache', 'REST APIs']
-      },
-      {
-        id: 'exp-2',
-        company: 'Outlier',
-        role: 'Data Annotator & AI Model Evaluator',
+        id: 'exp_default',
+        company: 'Software Engineer',
+        role: 'Full Stack Engineer',
         location: 'Remote',
-        startDate: 'Mar 2024',
-        endDate: 'Jun 2025',
-        bullets: [
-          'Worked on prompt engineering to evaluate and improve responses generated by large language models.',
-          'Analyzed AI-generated response for logical consistency, reasoning quality, and factual correctness.',
-          'Evaluated complex prompts across STEM domains including mathematics, science, and logical reasoning.',
-          'Identified model weaknesses and provided structured feedback to improve AI response quality.',
-          'Assisted in the creation and refinement of training datasets used for improving multimodal AI systems.'
-        ],
-        technologies: ['Prompt Engineering', 'Generative AI', 'LLM Evaluation', 'Python']
-      },
-      {
-        id: 'exp-3',
-        company: 'Oasis Infobyte',
-        role: 'Web Development Intern',
-        location: 'India',
-        startDate: 'Jun 2024',
-        endDate: 'Jul 2024',
-        bullets: [
-          'Developed a GitHub Explorer web application to fetch and display GitHub user profiles using the GitHub API.',
-          'Implemented asynchronous JavaScript using the Fetch API for dynamic data retrieval.',
-          'Designed a responsive UI for seamless usage across devices.'
-        ],
-        technologies: ['JavaScript', 'Fetch API', 'GitHub API', 'HTML5', 'CSS3']
-      },
-      {
-        id: 'exp-4',
-        company: 'Drycode Pvt. Limited',
-        role: 'Web Developer Intern',
-        location: 'India',
-        startDate: 'May 2024',
-        endDate: 'Jun 2024',
-        bullets: [
-          'Developed frontend features for web applications using HTML, CSS, and JavaScript.',
-          'Implemented DOM manipulation and event handling to build dynamic UI components.'
-        ],
-        technologies: ['HTML5', 'CSS3', 'JavaScript', 'DOM Manipulation']
+        startDate: '2023',
+        endDate: 'Present',
+        bullets: ['Architected scalable web applications and REST API microservices.'],
+        technologies: Array.from(new Set([...languages, ...frameworks])),
       }
     ],
-    projects: [
-      {
-        id: 'proj-1',
-        title: 'UPSFMS – Uttar Pradesh State Fertilizer Management System',
-        link: 'http://upsfms.com',
-        description: 'Comprehensive internal software system for managing fertilizer distribution and monitoring across Uttar Pradesh.',
-        bullets: [
-          'Implemented role-based user access, separate dashboards, API-based data fetching, activity logs, and stock monitoring.'
-        ],
-        technologies: ['PHP', 'MySQL', 'REST APIs', 'Dashboard Systems']
-      },
-      {
-        id: 'proj-2',
-        title: 'E-TOKEN Mobile Applications – Farmers and Retailers',
-        link: '',
-        description: 'React Native mobile applications for token-based service and queue management.',
-        bullets: [
-          'Implemented OTP-based login authentication, token generation, dashboard views, and server data sync.'
-        ],
-        technologies: ['React Native', 'OTP Auth', 'REST APIs']
-      },
-      {
-        id: 'proj-3',
-        title: 'Spice Serve – Catering Services Booking Website',
-        link: 'https://spice-serve.onrender.com/',
-        description: 'Multi-page catering service booking website with Neon DB backend.',
-        bullets: [
-          'Designed multi-page booking workflow, Neon DB integration, and responsive layout.'
-        ],
-        technologies: ['Neon DB', 'React.js', 'PHP', 'MySQL']
-      },
-      {
-        id: 'proj-4',
-        title: 'GitHub Explorer',
-        link: 'https://github.com/Silent237/GitHub-explorer',
-        description: 'Dynamic web application leveraging GitHub API to fetch user profiles.',
-        bullets: [
-          'Implemented Async JavaScript, Fetch API, and responsive UI design.'
-        ],
-        technologies: ['JavaScript', 'Fetch API', 'GitHub API']
-      }
-    ],
+    projects: projects,
     education: [
       {
-        id: 'edu-1',
-        degree: 'Bachelor of Computer Applications (BCA)',
-        institution: 'School of Management Sciences, Lucknow',
-        location: 'Lucknow, India',
-        startDate: 'Sep 2022',
-        endDate: 'Jul 2025'
+        id: 'edu_1',
+        degree: 'Bachelor of Technology / BCA',
+        institution: 'University',
+        location: 'India',
+        startDate: '2021',
+        endDate: '2025',
       }
     ],
     certifications: [],
     achievements: [],
-    extractedKeywords: [
-      'JavaScript', 'PHP', 'Python', 'Java', 'C', 'HTML5', 'CSS3', 'React.js',
-      'React Native', 'REST APIs', 'MySQL', 'Neon DB', 'Git', 'GitHub', 'Linux', 'Apache Server'
-    ]
+    extractedKeywords: Array.from(new Set([...languages, ...frameworks, ...databases, ...tools])),
   };
 
   return profile;
