@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import JSZip from 'jszip';
+import { getActiveUserId } from '@/lib/db';
 
 export function sanitizeFolderName(name: string): string {
   return name.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_');
@@ -13,13 +14,14 @@ export function saveCompanyApplicationFiles(
   coverLetterPdfBytes?: Buffer,
   coverLetterTex?: string,
   jobDescriptionText?: string,
-  candidateName: string = 'Candidate'
+  candidateName: string = 'Candidate',
+  userId?: string
 ): { folderPath: string; zipBuffer?: Buffer } {
+  const targetUser = userId || getActiveUserId();
   const cleanCompany = sanitizeFolderName(companyName) || 'Company';
   const cleanCandidate = sanitizeFolderName(candidateName) || 'Candidate';
 
-  const applicationsBaseDir = path.join(process.cwd(), 'Applications');
-  const companyFolder = path.join(applicationsBaseDir, cleanCompany);
+  const companyFolder = path.join(process.cwd(), 'Applications', targetUser, cleanCompany);
 
   if (!fs.existsSync(companyFolder)) {
     fs.mkdirSync(companyFolder, { recursive: true });
@@ -53,9 +55,13 @@ export function saveCompanyApplicationFiles(
   return { folderPath: companyFolder };
 }
 
-export async function createCompanyZip(companyName: string): Promise<Buffer> {
+export async function createCompanyZip(companyName: string, userId?: string): Promise<Buffer> {
+  const targetUser = userId || getActiveUserId();
   const cleanCompany = sanitizeFolderName(companyName);
-  const companyFolder = path.join(process.cwd(), 'Applications', cleanCompany);
+  let companyFolder = path.join(process.cwd(), 'Applications', targetUser, cleanCompany);
+  if (!fs.existsSync(companyFolder)) {
+    companyFolder = path.join(process.cwd(), 'Applications', cleanCompany);
+  }
 
   const zip = new JSZip();
 

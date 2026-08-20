@@ -1,7 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-
-const DB_PATH = path.join(process.cwd(), 'data', 'db.json');
+import { cookies } from 'next/headers';
 
 export interface MasterTemplate {
   id: string;
@@ -166,30 +165,60 @@ const defaultDB: DatabaseSchema = {
   emailQueue: [],
   recruiterContacts: [],
   settings: {
-    theme: 'light',
+    theme: 'dark',
     googleDriveConnected: false,
     senderAccounts: [],
   },
 };
 
-function ensureDbExists() {
-  const dir = path.dirname(DB_PATH);
+export function getActiveUserId(): string {
+  try {
+    const cookieStore = cookies();
+    const val = cookieStore.get('hunt_user_id')?.value;
+    if (val && val.trim()) {
+      return val.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+    }
+  } catch {}
+  return 'default_user';
+}
+
+export function getUserDbPath(userId?: string): string {
+  const targetUser = userId || getActiveUserId();
+  const cleanId = targetUser.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+  return path.join(process.cwd(), 'data', 'users', cleanId, 'db.json');
+}
+
+function ensureDbExists(userId?: string) {
+  const dbPath = getUserDbPath(userId);
+  const dir = path.dirname(dbPath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  if (!fs.existsSync(DB_PATH)) {
-    fs.writeFileSync(DB_PATH, JSON.stringify(defaultDB, null, 2), 'utf-8');
+
+  // Auto-migrate root data/db.json to default_user if needed
+  const legacyPath = path.join(process.cwd(), 'data', 'db.json');
+  if (!fs.existsSync(dbPath)) {
+    if (fs.existsSync(legacyPath)) {
+      try {
+        const raw = fs.readFileSync(legacyPath, 'utf-8');
+        fs.writeFileSync(dbPath, raw, 'utf-8');
+      } catch {
+        fs.writeFileSync(dbPath, JSON.stringify(defaultDB, null, 2), 'utf-8');
+      }
+    } else {
+      fs.writeFileSync(dbPath, JSON.stringify(defaultDB, null, 2), 'utf-8');
+    }
   }
 }
 
-export function getDB(): DatabaseSchema {
-  ensureDbExists();
+export function getDB(userId?: string): DatabaseSchema {
+  ensureDbExists(userId);
+  const dbPath = getUserDbPath(userId);
   try {
-    const raw = fs.readFileSync(DB_PATH, 'utf-8');
+    const raw = fs.readFileSync(dbPath, 'utf-8');
     const parsed = JSON.parse(raw);
     if (!parsed.recruiterContacts) parsed.recruiterContacts = [];
-    if (!parsed.settings) parsed.settings = { theme: 'light', googleDriveConnected: false, senderAccounts: [] };
-    if (!parsed.settings.theme) parsed.settings.theme = 'light';
+    if (!parsed.settings) parsed.settings = { theme: 'dark', googleDriveConnected: false, senderAccounts: [] };
     if (!parsed.settings.senderAccounts) parsed.settings.senderAccounts = [];
 
     // Migrate single smtpConfig to senderAccounts if needed
@@ -226,57 +255,58 @@ export function getDB(): DatabaseSchema {
   }
 }
 
-export function saveDB(data: DatabaseSchema) {
-  ensureDbExists();
-  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2), 'utf-8');
+export function saveDB(data: DatabaseSchema, userId?: string) {
+  ensureDbExists(userId);
+  const dbPath = getUserDbPath(userId);
+  fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf-8');
 }
 
-export function getProfile(): UserProfile | null {
-  const db = getDB();
+export function getProfile(userId?: string): UserProfile | null {
+  const db = getDB(userId);
   return db.profile;
 }
 
-export function saveProfile(profile: UserProfile) {
-  const db = getDB();
+export function saveProfile(profile: UserProfile, userId?: string) {
+  const db = getDB(userId);
   db.profile = profile;
-  saveDB(db);
+  saveDB(db, userId);
   return profile;
 }
 
-export function getApplications(): ApplicationRecord[] {
-  return getDB().applications;
+export function getApplications(userId?: string): ApplicationRecord[] {
+  return getDB(userId).applications;
 }
 
-export function getApplicationById(id: string): ApplicationRecord | undefined {
-  return getDB().applications.find((a) => a.id === id);
+export function getApplicationById(id: string, userId?: string): ApplicationRecord | undefined {
+  return getDB(userId).applications.find((a) => a.id === id);
 }
 
-export function saveApplication(app: ApplicationRecord) {
-  const db = getDB();
+export function saveApplication(app: ApplicationRecord, userId?: string) {
+  const db = getDB(userId);
   const index = db.applications.findIndex((a) => a.id === app.id);
   if (index >= 0) {
     db.applications[index] = app;
   } else {
     db.applications.unshift(app);
   }
-  saveDB(db);
+  saveDB(db, userId);
   return app;
 }
 
-export function updateApplicationStatus(id: string, status: ApplicationRecord['status'], emailStatus?: ApplicationRecord['emailStatus']) {
-  const db = getDB();
+export function updateApplicationStatus(id: string, status: ApplicationRecord['status'], emailStatus?: ApplicationRecord['emailStatus'], userId?: string) {
+  const db = getDB(userId);
   const app = db.applications.find((a) => a.id === id);
   if (app) {
     app.status = status;
     if (emailStatus) app.emailStatus = emailStatus;
     app.updatedAt = new Date().toISOString();
-    saveDB(db);
+    saveDB(db, userId);
   }
   return app;
 }
 
-export function getDailyActivity(): DailyActivity {
-  const db = getDB();
+export function getDailyActivity(userId?: string): DailyActivity {
+  const db = getDB(userId);
   const todayStr = new Date().toISOString().split('T')[0];
   
   const applicationsToday = db.applications.filter((a) => a.createdAt.startsWith(todayStr)).length;

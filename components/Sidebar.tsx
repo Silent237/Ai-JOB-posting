@@ -3,13 +3,28 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, FileText, PlusCircle, Briefcase, Mail, CheckCircle2, Sparkles, Bot, Users } from 'lucide-react';
+import { LayoutDashboard, FileText, PlusCircle, Briefcase, Mail, CheckCircle2, Sparkles, Bot, Users, UserCheck, Shield, Plus } from 'lucide-react';
 
 export default function Sidebar() {
   const pathname = usePathname();
   const [stats, setStats] = useState({ applicationsToday: 0, emailsSentToday: 0, dailyEmailLimit: 50 });
+  const [activeUserId, setActiveUserId] = useState<string>('default_user');
+  const [availableUsers, setAvailableUsers] = useState<string[]>(['default_user']);
+  const [showNewUserModal, setShowNewUserModal] = useState(false);
+  const [newUserIdInput, setNewUserIdInput] = useState('');
+
+  const fetchSession = () => {
+    fetch('/api/user-session')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.activeUserId) setActiveUserId(data.activeUserId);
+        if (data.availableUsers) setAvailableUsers(data.availableUsers);
+      })
+      .catch(() => {});
+  };
 
   useEffect(() => {
+    fetchSession();
     fetch('/api/emails')
       .then((res) => res.json())
       .then((data) => {
@@ -17,6 +32,28 @@ export default function Sidebar() {
       })
       .catch(() => {});
   }, [pathname]);
+
+  const handleSwitchUser = async (userId: string) => {
+    try {
+      await fetch('/api/user-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      window.location.reload();
+    } catch {
+      alert('Failed to switch workspace account.');
+    }
+  };
+
+  const handleCreateNewUser = async () => {
+    if (!newUserIdInput || !newUserIdInput.trim()) {
+      alert('Please enter a valid user workspace account name.');
+      return;
+    }
+    const clean = newUserIdInput.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+    await handleSwitchUser(clean);
+  };
 
   const navItems = [
     { label: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -32,14 +69,70 @@ export default function Sidebar() {
     <aside className="w-64 bg-slate-900 text-slate-100 flex flex-col justify-between min-h-screen border-r border-slate-800">
       <div>
         {/* Brand Header */}
-        <div className="p-5 border-b border-slate-800 flex items-center gap-3">
-          <div className="p-2 bg-sky-600 rounded-lg text-white">
-            <Sparkles className="w-5 h-5" />
+        <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-sky-600 rounded-lg text-white">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="font-bold text-sm text-white leading-tight">AI Job Dashboard</h1>
+              <p className="text-[11px] text-sky-400 font-medium">Multi-Tenant Suite</p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-bold text-base text-white leading-tight">AI Job Dashboard</h1>
-            <p className="text-xs text-sky-400 font-medium">User-Centric Suite</p>
+        </div>
+
+        {/* User Account Isolated Workspace Selector */}
+        <div className="p-3 border-b border-slate-800/80 bg-slate-950/60 space-y-2">
+          <div className="flex items-center justify-between text-[11px] font-semibold text-slate-400">
+            <span className="flex items-center gap-1 text-slate-300">
+              <Shield className="w-3 h-3 text-emerald-400" /> Private Account Workspace
+            </span>
+            <button
+              onClick={() => setShowNewUserModal(!showNewUserModal)}
+              className="text-sky-400 hover:text-sky-300 flex items-center gap-0.5 font-bold"
+              title="Create New User Account Workspace"
+            >
+              <Plus className="w-3 h-3" /> New
+            </button>
           </div>
+
+          <select
+            value={activeUserId}
+            onChange={(e) => handleSwitchUser(e.target.value)}
+            className="w-full bg-slate-900 text-xs font-bold text-sky-300 px-2.5 py-1.5 rounded-lg border border-slate-800 focus:outline-none focus:border-sky-500 font-mono"
+          >
+            {availableUsers.map((u) => (
+              <option key={u} value={u}>
+                User: {u}
+              </option>
+            ))}
+          </select>
+
+          {showNewUserModal && (
+            <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg space-y-2 pt-2">
+              <input
+                type="text"
+                value={newUserIdInput}
+                onChange={(e) => setNewUserIdInput(e.target.value)}
+                placeholder="Enter User Account Name..."
+                className="w-full bg-slate-950 text-xs text-white px-2 py-1.5 rounded border border-slate-800 font-mono"
+              />
+              <div className="flex justify-end gap-1">
+                <button
+                  onClick={() => setShowNewUserModal(false)}
+                  className="px-2 py-1 bg-slate-800 text-slate-400 text-[10px] rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateNewUser}
+                  className="px-2 py-1 bg-sky-600 hover:bg-sky-500 text-white text-[10px] font-bold rounded"
+                >
+                  Create Workspace
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Navigation Links */}
