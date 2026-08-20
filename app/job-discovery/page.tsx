@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Search, Bot, Play, Pause, RefreshCw, Plus, Link as LinkIcon, FileText, CheckCircle2, AlertTriangle, Layers, ArrowRight, Zap, ExternalLink, Globe, Plane, Building2, Send, ChevronDown, Radio, Mail } from 'lucide-react';
 import { DiscoveredJob } from '@/lib/job-fetcher';
 import { WorkerState } from '@/lib/auto-worker';
@@ -14,13 +14,49 @@ export default function JobDiscoveryPage() {
   const [autoRefreshFeed, setAutoRefreshFeed] = useState(true);
   const [customEmails, setCustomEmails] = useState<{ [key: string]: string }>({});
 
-  const [workerState, setWorkerState] = useState<WorkerState | null>(null);
-  const [minScore, setMinScore] = useState(65);
+  const [queuedJobs, setQueuedJobs] = useState<DiscoveredJob[]>([]);
+  const [isRunning, setIsRunning] = useState(false);
   const [autoSend, setAutoSend] = useState(false);
+  const [minScore, setMinScore] = useState(65);
+  const [processedCount, setProcessedCount] = useState(0);
+  const [logs, setLogs] = useState<Array<{ timestamp: string; message: string; type: 'info' | 'success' | 'warn' | 'error' }>>([
+    { timestamp: new Date().toLocaleTimeString(), message: 'Autonomous Job Application Worker ready.', type: 'info' }
+  ]);
 
   const [urlInput, setUrlInput] = useState('');
   const [bulkInput, setBulkInput] = useState('');
   const [importing, setImporting] = useState(false);
+  const isProcessingRef = useRef(false);
+
+  // Restore queuedJobs & isRunning from LocalStorage on mount
+  useEffect(() => {
+    try {
+      const storedQueue = localStorage.getItem('hunt_worker_queued_jobs');
+      if (storedQueue) {
+        const parsed = JSON.parse(storedQueue);
+        if (Array.isArray(parsed)) setQueuedJobs(parsed);
+      }
+      const storedRun = localStorage.getItem('hunt_worker_is_running');
+      if (storedRun !== null) setIsRunning(storedRun === 'true');
+    } catch {}
+
+    fetchJobs();
+    fetchWorkerState();
+  }, []);
+
+  const saveQueueToStorage = (newQueue: DiscoveredJob[]) => {
+    setQueuedJobs(newQueue);
+    try {
+      localStorage.setItem('hunt_worker_queued_jobs', JSON.stringify(newQueue));
+    } catch {}
+  };
+
+  const addLog = (message: string, type: 'info' | 'success' | 'warn' | 'error' = 'info') => {
+    setLogs(prev => [
+      { timestamp: new Date().toLocaleTimeString(), message, type },
+      ...prev.slice(0, 49)
+    ]);
+  };
 
   const fetchJobs = (queryStr = searchQuery, locStr = locationQuery) => {
     setLoadingJobs(true);
@@ -37,35 +73,19 @@ export default function JobDiscoveryPage() {
   };
 
   const fetchWorkerState = () => {
-    let clientRunning: boolean | null = null;
-    try {
-      const storedRun = localStorage.getItem('hunt_worker_is_running');
-      if (storedRun !== null) clientRunning = storedRun === 'true';
-    } catch {}
-
     fetch('/api/worker')
       .then(res => res.json())
       .then(data => {
         if (data.state) {
-          const finalRunning = clientRunning !== null ? clientRunning : Boolean(data.state.isRunning);
-          const finalState: WorkerState = {
-            ...data.state,
-            isRunning: finalRunning,
-          };
-          setWorkerState(finalState);
           setMinScore(data.state.minMatchScore);
           setAutoSend(Boolean(data.state.autoSendEmail));
+          if (data.state.processedCount > processedCount) {
+            setProcessedCount(data.state.processedCount);
+          }
         }
       })
       .catch(() => {});
   };
-
-  useEffect(() => {
-    fetchJobs();
-    fetchWorkerState();
-    const interval = setInterval(fetchWorkerState, 4000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Periodic Auto-Refresh for Live Jobs Feed (60-second Interval)
   useEffect(() => {
@@ -76,96 +96,91 @@ export default function JobDiscoveryPage() {
     return () => clearInterval(feedInterval);
   }, [autoRefreshFeed, searchQuery, locationQuery]);
 
-  // Autonomous worker processing loop
+  // Autonomous worker processing loop driven by React state & LocalStorage
   useEffect(() => {
-    if (workerState?.isRunning && workerState.queuedJobs && workerState.queuedJobs.length > 0) {
+    if (isRunning && queuedJobs.length > 0 && !isProcessingRef.current) {
       const timer = setTimeout(() => {
-        handleProcessNext();
-      }, 4500);
+        processNextInClientQueue();
+      }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [workerState?.isRunning, workerState?.queuedJobs?.length]);
+  }, [isRunning, queuedJobs]);
 
-  const handleToggleWorker = async () => {
-    if (!workerState) return;
-    const nextRunning = !workerState.isRunning;
-    
-    // Update client state & localStorage instantly
-    try {
-      localStorage.setItem('hunt_worker_is_running', nextRunning ? 'true' : 'false');
-    } catch {}
-    setWorkerState({ ...workerState, isRunning: nextRunning });
+  const processNextInClientQueue = async () => {
+    if (queuedJobs.length === 0 || isProcessingRef.current) return;
+    isProcessingRef.current = true;
 
-    try {
-      await fetch('/api/worker', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'toggle', isRunning: nextRunning }),
-      });
-    } catch {}
-  };
+    const currentJob = queuedJobs[0];
+    addLog(`[Worker] Processing: "${currentJob.title}" at ${currentJob.company}`, 'info');
 
-  const handleToggleAutoSend = async () => {
-    const nextAutoSend = !autoSend;
-    setAutoSend(nextAutoSend);
     try {
       const res = await fetch('/api/worker', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'set_auto_send', autoSendEmail: nextAutoSend }),
+        body: JSON.stringify({ action: 'process_single', job: currentJob }),
       });
       const data = await res.json();
-      if (data.state) setWorkerState(data.state);
-    } catch {}
+      if (data.success) {
+        addLog(`[Worker Success] Tailored CV & Cover Letter created for ${currentJob.company}`, 'success');
+        setProcessedCount(prev => prev + 1);
+      } else {
+        addLog(`[Worker Error] ${data.message || 'Failed processing job'}`, 'error');
+      }
+    } catch (err: any) {
+      addLog(`[Worker Error] ${err.message}`, 'error');
+    } finally {
+      // Remove processed job from client queue
+      const remaining = queuedJobs.slice(1);
+      saveQueueToStorage(remaining);
+      isProcessingRef.current = false;
+    }
   };
 
-  const handleSetMinScore = async (val: number) => {
-    setMinScore(val);
+  const handleToggleWorker = () => {
+    const nextState = !isRunning;
+    setIsRunning(nextState);
     try {
-      const res = await fetch('/api/worker', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'set_score', minMatchScore: val }),
-      });
-      const data = await res.json();
-      if (data.state) setWorkerState(data.state);
+      localStorage.setItem('hunt_worker_is_running', nextState ? 'true' : 'false');
     } catch {}
+    addLog(`Autonomous worker ${nextState ? 'STARTED' : 'PAUSED'}`, 'info');
   };
 
-  const handleEnqueueSingle = async (job: DiscoveredJob) => {
+  const handleEnqueueSingle = (job: DiscoveredJob) => {
     const overrideEmail = customEmails[job.id]?.trim();
     const finalJob = overrideEmail ? { ...job, url: overrideEmail } : job;
-    try {
-      const res = await fetch('/api/jobs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'enqueue', jobs: [finalJob] }),
-      });
-      const data = await res.json();
-      if (data.state) setWorkerState(data.state);
-    } catch {
-      alert('Failed to queue job.');
+    
+    const existingKeys = new Set(queuedJobs.map(j => `${j.company.toLowerCase().trim()}_${j.title.toLowerCase().trim()}`));
+    const key = `${finalJob.company.toLowerCase().trim()}_${finalJob.title.toLowerCase().trim()}`;
+
+    if (!existingKeys.has(key)) {
+      const updated = [...queuedJobs, finalJob];
+      saveQueueToStorage(updated);
+      addLog(`Queued "${finalJob.title}" at ${finalJob.company} for auto-application`, 'info');
+    } else {
+      addLog(`Job "${finalJob.title}" at ${finalJob.company} is already in your queue.`, 'warn');
     }
   };
 
-  const handleEnqueueAll = async () => {
+  const handleEnqueueAll = () => {
     if (jobs.length === 0) return;
-    try {
-      const res = await fetch('/api/jobs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'enqueue', jobs }),
-      });
-      const data = await res.json();
-      if (data.state) {
-        setWorkerState(data.state);
-        alert(`⚡ Successfully queued all ${jobs.length} jobs! Worker queue count is now ${data.state.queuedJobs.length}`);
-      } else {
-        fetchWorkerState();
+    const existingKeys = new Set(queuedJobs.map(j => `${j.company.toLowerCase().trim()}_${j.title.toLowerCase().trim()}`));
+    
+    let addedCount = 0;
+    const newJobs: DiscoveredJob[] = [];
+
+    jobs.forEach(j => {
+      const key = `${j.company.toLowerCase().trim()}_${j.title.toLowerCase().trim()}`;
+      if (!existingKeys.has(key)) {
+        newJobs.push(j);
+        existingKeys.add(key);
+        addedCount++;
       }
-    } catch {
-      alert('Failed to queue jobs.');
-    }
+    });
+
+    const updated = [...queuedJobs, ...newJobs];
+    saveQueueToStorage(updated);
+    addLog(`⚡ Queued ${addedCount} new discovered job(s) into your worker queue!`, 'success');
+    alert(`⚡ Successfully queued ${addedCount} new jobs into your private worker queue! (Total in queue: ${updated.length})`);
   };
 
   const handleImportUrl = async () => {
@@ -178,8 +193,8 @@ export default function JobDiscoveryPage() {
         body: JSON.stringify({ action: 'import_url', jobUrl: urlInput }),
       });
       const data = await res.json();
-      if (data.state) {
-        setWorkerState(data.state);
+      if (data.job) {
+        handleEnqueueSingle(data.job);
         setUrlInput('');
       }
     } catch {
@@ -199,27 +214,15 @@ export default function JobDiscoveryPage() {
         body: JSON.stringify({ action: 'import_bulk', bulkText: bulkInput }),
       });
       const data = await res.json();
-      if (data.state) {
-        setWorkerState(data.state);
+      if (data.count) {
         setBulkInput('');
+        addLog(`Imported ${data.count} bulk job descriptions into queue`, 'info');
       }
     } catch {
       alert('Error importing bulk JDs.');
     } finally {
       setImporting(false);
     }
-  };
-
-  const handleProcessNext = async () => {
-    try {
-      const res = await fetch('/api/worker', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'process_next' }),
-      });
-      const data = await res.json();
-      if (data.state) setWorkerState(data.state);
-    } catch {}
   };
 
   const handlePresetSearch = (channel: string) => {
@@ -260,20 +263,20 @@ export default function JobDiscoveryPage() {
           <div>
             <div className="text-xs text-slate-400 font-semibold uppercase">Auto-Worker Status</div>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className={`w-2.5 h-2.5 rounded-full ${workerState?.isRunning ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-              <span className="text-sm font-bold text-white">{workerState?.isRunning ? 'Running' : 'Paused'}</span>
+              <span className={`w-2.5 h-2.5 rounded-full ${isRunning ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+              <span className="text-sm font-bold text-white">{isRunning ? 'Running' : 'Paused'}</span>
             </div>
           </div>
           <button
             onClick={handleToggleWorker}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-md ${
-              workerState?.isRunning
+              isRunning
                 ? 'bg-amber-600 hover:bg-amber-500 text-white'
                 : 'bg-emerald-600 hover:bg-emerald-500 text-white'
             }`}
           >
-            {workerState?.isRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-            {workerState?.isRunning ? 'Pause Worker' : 'Start Auto-Worker'}
+            {isRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+            {isRunning ? 'Pause Worker' : 'Start Auto-Worker'}
           </button>
         </div>
       </div>
@@ -518,7 +521,7 @@ export default function JobDiscoveryPage() {
               </div>
 
               <button
-                onClick={handleToggleAutoSend}
+                onClick={() => setAutoSend(!autoSend)}
                 className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${
                   autoSend ? 'bg-emerald-600 justify-end' : 'bg-slate-800 justify-start'
                 }`}
@@ -537,7 +540,7 @@ export default function JobDiscoveryPage() {
                 min={40}
                 max={90}
                 value={minScore}
-                onChange={(e) => handleSetMinScore(Number(e.target.value))}
+                onChange={(e) => setMinScore(Number(e.target.value))}
                 className="w-full accent-indigo-500"
               />
               <p className="text-[11px] text-slate-400">
@@ -548,16 +551,16 @@ export default function JobDiscoveryPage() {
             <div className="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-300 uppercase">Jobs Queued</span>
-                <span className="text-sm font-bold text-indigo-400">{workerState?.queuedJobs?.length || 0}</span>
+                <span className="text-sm font-bold text-indigo-400">{queuedJobs.length}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-300 uppercase">Tailored Resumes & PDFs Created</span>
-                <span className="text-sm font-bold text-emerald-400">{workerState?.processedCount || 0}</span>
+                <span className="text-sm font-bold text-emerald-400">{processedCount}</span>
               </div>
 
               <button
-                onClick={handleProcessNext}
-                disabled={!workerState || !workerState.queuedJobs || workerState.queuedJobs.length === 0}
+                onClick={processNextInClientQueue}
+                disabled={queuedJobs.length === 0}
                 className="w-full mt-2 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-bold rounded-lg text-xs transition-all flex items-center justify-center gap-1.5"
               >
                 <Zap className="w-3.5 h-3.5" /> Process Next Job Immediately
@@ -576,7 +579,7 @@ export default function JobDiscoveryPage() {
             </div>
 
             <div className="bg-slate-950 font-mono text-[11px] p-3 rounded-xl border border-slate-800 h-64 overflow-y-auto space-y-2">
-              {workerState?.logs?.map((log, idx) => (
+              {logs.map((log, idx) => (
                 <div key={idx} className="flex items-start gap-2">
                   <span className="text-slate-500 text-[10px] whitespace-nowrap">{log.timestamp}</span>
                   <span className={`${

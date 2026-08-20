@@ -65,13 +65,11 @@ export function addLogToWorker(message: string, type: 'info' | 'success' | 'warn
   saveWorkerState(state, userId);
 }
 
-// Strict Deduplication Enqueue Safeguard
 export function enqueueJobs(jobs: DiscoveredJob[], userId?: string) {
   const targetUser = userId || getActiveUserId();
   const state = getWorkerState(targetUser);
   const db = getDB(targetUser);
 
-  // Collect existing job identifiers from queue & database
   const existingQueueKeys = new Set(state.queuedJobs.map(j => `${j.company.toLowerCase().trim()}_${j.title.toLowerCase().trim()}`));
   const existingAppKeys = new Set(db.applications.map(a => `${a.company.toLowerCase().trim()}_${a.position.toLowerCase().trim()}`));
 
@@ -94,34 +92,14 @@ export function enqueueJobs(jobs: DiscoveredJob[], userId?: string) {
   return state;
 }
 
-export async function processNextJobInQueue(userId?: string): Promise<{ processed: boolean; message: string }> {
+export async function processSingleJob(job: DiscoveredJob, userId?: string): Promise<{ success: boolean; message: string; score?: number }> {
   const targetUser = userId || getActiveUserId();
-  const state = getWorkerState(targetUser);
-
-  // Auto-Discovery: If queue is empty and worker is running, fetch fresh live jobs automatically!
-  if (state.queuedJobs.length === 0) {
-    if (state.isRunning) {
-      addLogToWorker(`[Auto-Refresh] Worker queue empty. Fetching fresh live jobs from aggregators...`, 'info', targetUser);
-      try {
-        const freshJobs = await searchJobs('Full Stack Developer', 'India / Remote');
-        enqueueJobs(freshJobs, targetUser);
-        const updatedState = getWorkerState(targetUser);
-        if (updatedState.queuedJobs.length > 0) {
-          return processNextJobInQueue(targetUser);
-        }
-      } catch {}
-    }
-    return { processed: false, message: 'Queue is empty.' };
-  }
-
-  const job = state.queuedJobs.shift()!;
-  saveWorkerState(state, targetUser);
-
   const db = getDB(targetUser);
+
   const existingAppKey = `${job.company.toLowerCase().trim()}_${job.title.toLowerCase().trim()}`;
   if (db.applications.some(a => `${a.company.toLowerCase().trim()}_${a.position.toLowerCase().trim()}` === existingAppKey)) {
     addLogToWorker(`[Worker] Skipped duplicate application for "${job.title}" at ${job.company}`, 'warn', targetUser);
-    return { processed: true, message: `Skipped duplicate application for ${job.company}` };
+    return { success: true, message: `Skipped duplicate application for ${job.company}` };
   }
 
   addLogToWorker(`[Worker] Processing job: "${job.title}" at ${job.company}`, 'info', targetUser);
@@ -134,11 +112,6 @@ export async function processNextJobInQueue(userId?: string): Promise<{ processe
     // 1. Analyze JD & Match Score
     const jdAnalysis = analyzeJobDescription(job.description, profile);
     const score = jdAnalysis.matchScore.overall;
-
-    if (score < state.minMatchScore) {
-      addLogToWorker(`[Worker] Skipped "${job.title}" at ${job.company} (Match score ${score}% < min threshold ${state.minMatchScore}%)`, 'warn', targetUser);
-      return { processed: true, message: `Skipped job due to low match score (${score}%).` };
-    }
 
     // 2. CV Audit
     const audit = auditCVAgainstJD(profile, masterLaTeX, jdAnalysis);
@@ -206,8 +179,8 @@ export async function processNextJobInQueue(userId?: string): Promise<{ processe
       folderPath,
       resumePdfUrl: `/api/applications/${appId}/file?file=Resume.pdf`,
       coverLetterPdfUrl: `/api/applications/${appId}/file?file=Cover_Letter.pdf`,
-      status: state.autoSendEmail ? 'Applied' : 'Generated',
-      emailStatus: state.autoSendEmail ? 'Sent' : 'Drafted',
+      status: 'Generated',
+      emailStatus: 'Drafted',
       emailDraft: {
         subject: emailDraftObj.subject,
         body: emailDraftObj.body,
@@ -225,24 +198,30 @@ export async function processNextJobInQueue(userId?: string): Promise<{ processe
       recipient: emailTarget,
       subject: emailDraftObj.subject,
       body: emailDraftObj.body,
-      status: state.autoSendEmail ? 'Approved' : 'Pending',
+      status: 'Pending',
     });
     saveDB(db, targetUser);
 
-    // Auto-dispatch email if Auto-Send mode is turned ON
-    if (state.autoSendEmail) {
-      await sendApplicationEmail(emailQueueId, targetUser);
-      addLogToWorker(`[Auto-Apply] Dispatched application email to ${emailTarget} for ${job.company}`, 'success', targetUser);
-    }
-
-    state.processedCount += 1;
-    saveWorkerState(state, targetUser);
-
     addLogToWorker(`[Worker Success] Tailored CV & PDF created for ${job.company} (${score}% match). Saved in Applications/${cleanCompany}/`, 'success', targetUser);
-    return { processed: true, message: `Successfully processed application for ${job.company}` };
+    return { success: true, message: `Successfully processed application for ${job.company}`, score };
 
   } catch (err: any) {
     addLogToWorker(`[Worker Error] Failed processing ${job.company}: ${err.message}`, 'error', targetUser);
-    return { processed: false, message: err.message };
+    return { success: false, message: err.message };
   }
+}
+
+export async function processNextJobInQueue(userId?: string): Promise<{ processed: boolean; message: string }> {
+  const targetUser = userId || getActiveUserId();
+  const state = getWorkerState(targetUser);
+
+  if (state.queuedJobs.length === 0) {
+    return { processed: false, message: 'Queue is empty.' };
+  }
+
+  const job = state.queuedJobs.shift()!;
+  saveWorkerState(state, targetUser);
+
+  const res = await processSingleJob(job, targetUser);
+  return { processed: true, message: res.message };
 }

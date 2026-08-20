@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getWorkerState, saveWorkerState, processNextJobInQueue, addLogToWorker } from '@/lib/auto-worker';
+import { getWorkerState, saveWorkerState, processNextJobInQueue, processSingleJob, addLogToWorker } from '@/lib/auto-worker';
 import { getActiveUserId } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -13,7 +13,8 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const userId = getActiveUserId();
-    const { action, isRunning, minMatchScore, autoSendEmail } = await req.json();
+    const body = await req.json();
+    const { action, isRunning, minMatchScore, autoSendEmail, job } = body;
     const state = getWorkerState(userId);
 
     if (action === 'toggle') {
@@ -35,6 +36,11 @@ export async function POST(req: Request) {
       saveWorkerState(state, userId);
       addLogToWorker(`Minimum match score threshold updated to ${state.minMatchScore}%`, 'info', userId);
       return NextResponse.json({ success: true, state });
+    }
+
+    if (action === 'process_single' && job) {
+      const res = await processSingleJob(job, userId);
+      return NextResponse.json({ ...res, state: getWorkerState(userId) });
     }
 
     if (action === 'process_next') {
