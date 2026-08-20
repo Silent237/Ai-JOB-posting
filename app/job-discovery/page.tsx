@@ -6,6 +6,7 @@ import { DiscoveredJob } from '@/lib/job-fetcher';
 import { WorkerState } from '@/lib/auto-worker';
 
 export default function JobDiscoveryPage() {
+  const [activeUserId, setActiveUserId] = useState('default_user');
   const [searchQuery, setSearchQuery] = useState('Full Stack Developer');
   const [locationQuery, setLocationQuery] = useState('India / Remote');
   const [jobs, setJobs] = useState<DiscoveredJob[]>([]);
@@ -28,26 +29,33 @@ export default function JobDiscoveryPage() {
   const [importing, setImporting] = useState(false);
   const isProcessingRef = useRef(false);
 
-  // Restore queuedJobs & isRunning from LocalStorage on mount
+  // Detect active user ID & restore queuedJobs & isRunning from LocalStorage on mount
   useEffect(() => {
+    let currentId = 'default_user';
     try {
-      const storedQueue = localStorage.getItem('hunt_worker_queued_jobs');
+      const storedId = localStorage.getItem('hunt_active_user_id');
+      if (storedId) {
+        currentId = storedId.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+        setActiveUserId(currentId);
+      }
+
+      const storedQueue = localStorage.getItem(`hunt_worker_queued_jobs_${currentId}`);
       if (storedQueue) {
         const parsed = JSON.parse(storedQueue);
         if (Array.isArray(parsed)) setQueuedJobs(parsed);
       }
-      const storedRun = localStorage.getItem('hunt_worker_is_running');
+      const storedRun = localStorage.getItem(`hunt_worker_is_running_${currentId}`);
       if (storedRun !== null) setIsRunning(storedRun === 'true');
     } catch {}
 
     fetchJobs();
-    fetchWorkerState();
+    fetchWorkerState(currentId);
   }, []);
 
-  const saveQueueToStorage = (newQueue: DiscoveredJob[]) => {
+  const saveQueueToStorage = (newQueue: DiscoveredJob[], targetUser = activeUserId) => {
     setQueuedJobs(newQueue);
     try {
-      localStorage.setItem('hunt_worker_queued_jobs', JSON.stringify(newQueue));
+      localStorage.setItem(`hunt_worker_queued_jobs_${targetUser}`, JSON.stringify(newQueue));
     } catch {}
   };
 
@@ -72,7 +80,7 @@ export default function JobDiscoveryPage() {
       .catch(() => setLoadingJobs(false));
   };
 
-  const fetchWorkerState = () => {
+  const fetchWorkerState = (userId = activeUserId) => {
     fetch('/api/worker')
       .then(res => res.json())
       .then(data => {
@@ -81,6 +89,14 @@ export default function JobDiscoveryPage() {
           setAutoSend(Boolean(data.state.autoSendEmail));
           if (data.state.processedCount > processedCount) {
             setProcessedCount(data.state.processedCount);
+          }
+          if (Array.isArray(data.state.logs) && data.state.logs.length > 0) {
+            setLogs(prev => {
+              const combined = [...data.state.logs, ...prev];
+              const unique = Array.from(new Set(combined.map(l => `${l.timestamp}_${l.message}`)))
+                .map(key => combined.find(l => `${l.timestamp}_${l.message}` === key)!);
+              return unique.slice(0, 50);
+            });
           }
         }
       })
@@ -101,7 +117,7 @@ export default function JobDiscoveryPage() {
     if (isRunning && queuedJobs.length > 0 && !isProcessingRef.current) {
       const timer = setTimeout(() => {
         processNextInClientQueue();
-      }, 3000);
+      }, 3500);
       return () => clearTimeout(timer);
     }
   }, [isRunning, queuedJobs]);
@@ -129,7 +145,6 @@ export default function JobDiscoveryPage() {
     } catch (err: any) {
       addLog(`[Worker Error] ${err.message}`, 'error');
     } finally {
-      // Remove processed job from client queue
       const remaining = queuedJobs.slice(1);
       saveQueueToStorage(remaining);
       isProcessingRef.current = false;
@@ -140,12 +155,17 @@ export default function JobDiscoveryPage() {
     const nextState = !isRunning;
     setIsRunning(nextState);
     try {
-      localStorage.setItem('hunt_worker_is_running', nextState ? 'true' : 'false');
+      localStorage.setItem(`hunt_worker_is_running_${activeUserId}`, nextState ? 'true' : 'false');
     } catch {}
+    fetch('/api/worker', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'toggle', isRunning: nextState }),
+    }).catch(() => {});
     addLog(`Autonomous worker ${nextState ? 'STARTED' : 'PAUSED'}`, 'info');
   };
 
-  const handleEnqueueSingle = (job: DiscoveredJob) => {
+  const handleEnqueueSingle = async (job: DiscoveredJob) => {
     const overrideEmail = customEmails[job.id]?.trim();
     const finalJob = overrideEmail ? { ...job, url: overrideEmail } : job;
     
@@ -156,12 +176,19 @@ export default function JobDiscoveryPage() {
       const updated = [...queuedJobs, finalJob];
       saveQueueToStorage(updated);
       addLog(`Queued "${finalJob.title}" at ${finalJob.company} for auto-application`, 'info');
+      try {
+        await fetch('/api/jobs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'enqueue', jobs: [finalJob] }),
+        });
+      } catch {}
     } else {
       addLog(`Job "${finalJob.title}" at ${finalJob.company} is already in your queue.`, 'warn');
     }
   };
 
-  const handleEnqueueAll = () => {
+  const handleEnqueueAll = async () => {
     if (jobs.length === 0) return;
     const existingKeys = new Set(queuedJobs.map(j => `${j.company.toLowerCase().trim()}_${j.title.toLowerCase().trim()}`));
     
@@ -180,6 +207,15 @@ export default function JobDiscoveryPage() {
     const updated = [...queuedJobs, ...newJobs];
     saveQueueToStorage(updated);
     addLog(`⚡ Queued ${addedCount} new discovered job(s) into your worker queue!`, 'success');
+
+    try {
+      await fetch('/api/jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'enqueue', jobs: newJobs }),
+      });
+    } catch {}
+
     alert(`⚡ Successfully queued ${addedCount} new jobs into your private worker queue! (Total in queue: ${updated.length})`);
   };
 
