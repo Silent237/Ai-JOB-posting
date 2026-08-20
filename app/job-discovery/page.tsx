@@ -134,13 +134,14 @@ export default function JobDiscoveryPage() {
   const handleEnqueueAll = async () => {
     if (jobs.length === 0) return;
     try {
-      await fetch('/api/jobs', {
+      const res = await fetch('/api/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'enqueue', jobs }),
       });
+      const data = await res.json();
       fetchWorkerState();
-      alert(`Queued all ${jobs.length} jobs into autonomous background worker!`);
+      alert(`⚡ Successfully queued all ${jobs.length} jobs into your private worker queue!`);
     } catch {
       alert('Failed to queue jobs.');
     }
@@ -309,14 +310,24 @@ export default function JobDiscoveryPage() {
                 Live Job Feed ({jobs.length} Discovered)
               </h2>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                {jobs.length > 0 && (
+                  <button
+                    onClick={handleEnqueueAll}
+                    className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 shadow-md shadow-emerald-600/30"
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    ⚡ Queue All ({jobs.length})
+                  </button>
+                )}
+
                 <button
                   onClick={() => fetchJobs(searchQuery, locationQuery)}
                   disabled={loadingJobs}
                   className="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 shadow-sm"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${loadingJobs ? 'animate-spin' : ''}`} />
-                  Refresh Feed Now
+                  Refresh Feed
                 </button>
 
                 <button
