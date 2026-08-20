@@ -92,7 +92,7 @@ export function enqueueJobs(jobs: DiscoveredJob[], userId?: string) {
   return state;
 }
 
-export async function processSingleJob(job: DiscoveredJob, userId?: string): Promise<{ success: boolean; message: string; score?: number }> {
+export async function processSingleJob(job: DiscoveredJob, userId?: string): Promise<{ success: boolean; message: string; application?: ApplicationRecord; emailItem?: any; score?: number }> {
   const targetUser = userId || getActiveUserId();
   const db = getDB(targetUser);
 
@@ -126,27 +126,37 @@ export async function processSingleJob(job: DiscoveredJob, userId?: string): Pro
     const cleanCompany = sanitizeFolderName(job.company);
     const baseDir = getWritableBaseDir();
     const outputDir = path.join(baseDir, 'Applications', targetUser, cleanCompany);
-    if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+    try {
+      if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+    } catch {}
 
     // 6. Compile PDFs
     const resumePdfPath = await compileLaTeXToPDF(tailoredLaTeX, outputDir, 'Resume');
     const coverLetterPdfPath = await compileLaTeXToPDF(coverLetterObj.tex, outputDir, 'Cover_Letter');
 
-    const resumePdfBytes = fs.existsSync(resumePdfPath) ? fs.readFileSync(resumePdfPath) : undefined;
-    const coverLetterPdfBytes = fs.existsSync(coverLetterPdfPath) ? fs.readFileSync(coverLetterPdfPath) : undefined;
+    let resumePdfBytes: Buffer | undefined;
+    let coverLetterPdfBytes: Buffer | undefined;
+    try {
+      if (fs.existsSync(resumePdfPath)) resumePdfBytes = fs.readFileSync(resumePdfPath);
+      if (fs.existsSync(coverLetterPdfPath)) coverLetterPdfBytes = fs.readFileSync(coverLetterPdfPath);
+    } catch {}
 
     // 7. Save Company Files with Candidate Named PDFs
     const candidateName = profile?.name || 'Candidate';
-    const { folderPath } = saveCompanyApplicationFiles(
-      job.company,
-      tailoredLaTeX,
-      resumePdfBytes,
-      coverLetterPdfBytes,
-      coverLetterObj.tex,
-      job.description,
-      candidateName,
-      targetUser
-    );
+    let folderPath = outputDir;
+    try {
+      const res = saveCompanyApplicationFiles(
+        job.company,
+        tailoredLaTeX,
+        resumePdfBytes,
+        coverLetterPdfBytes,
+        coverLetterObj.tex,
+        job.description,
+        candidateName,
+        targetUser
+      );
+      folderPath = res.folderPath;
+    } catch {}
 
     // 8. Resolve Valid Recruiter Email
     let emailTarget = job.url?.includes('@') ? job.url : '';
@@ -190,8 +200,7 @@ export async function processSingleJob(job: DiscoveredJob, userId?: string): Pro
       updatedAt: new Date().toISOString(),
     };
 
-    db.applications.unshift(newRecord);
-    db.emailQueue.unshift({
+    const newEmailItem = {
       id: emailQueueId,
       applicationId: appId,
       company: job.company,
@@ -199,11 +208,14 @@ export async function processSingleJob(job: DiscoveredJob, userId?: string): Pro
       subject: emailDraftObj.subject,
       body: emailDraftObj.body,
       status: 'Pending',
-    });
+    };
+
+    db.applications.unshift(newRecord);
+    db.emailQueue.unshift(newEmailItem);
     saveDB(db, targetUser);
 
     addLogToWorker(`[Worker Success] Tailored CV & PDF created for ${job.company} (${score}% match). Saved in Applications/${cleanCompany}/`, 'success', targetUser);
-    return { success: true, message: `Successfully processed application for ${job.company}`, score };
+    return { success: true, message: `Successfully processed application for ${job.company}`, application: newRecord, emailItem: newEmailItem, score };
 
   } catch (err: any) {
     addLogToWorker(`[Worker Error] Failed processing ${job.company}: ${err.message}`, 'error', targetUser);

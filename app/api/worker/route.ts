@@ -12,9 +12,9 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const userId = getActiveUserId();
     const body = await req.json();
     const { action, isRunning, minMatchScore, autoSendEmail, job } = body;
+    const userId = body.userId || getActiveUserId();
     const state = getWorkerState(userId);
 
     if (action === 'toggle') {

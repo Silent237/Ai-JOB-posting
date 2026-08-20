@@ -25,12 +25,44 @@ export default function ApplicationsTrackerPage() {
   const [regenerating, setRegenerating] = useState(false);
 
   const fetchApplications = () => {
+    let activeUser = 'default_user';
+    try {
+      const stored = localStorage.getItem('hunt_active_user_id');
+      if (stored) activeUser = stored.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+    } catch {}
+
     fetch('/api/applications')
       .then(res => res.json())
       .then(data => {
-        if (data.applications) setApplications(data.applications);
+        let serverApps: ApplicationRecord[] = data.applications || [];
+        let localApps: ApplicationRecord[] = [];
+        try {
+          const raw = localStorage.getItem(`hunt_applications_${activeUser}`);
+          if (raw) localApps = JSON.parse(raw);
+        } catch {}
+
+        const appMap = new Map<string, ApplicationRecord>();
+        // Add server apps
+        serverApps.forEach(a => appMap.set(a.id, a));
+        // Add local apps (overwriting or adding new)
+        localApps.forEach(a => {
+          if (!appMap.has(a.id)) {
+            appMap.set(a.id, a);
+          }
+        });
+
+        const merged = Array.from(appMap.values()).sort((a, b) => 
+          new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime()
+        );
+
+        setApplications(merged);
       })
-      .catch(() => {});
+      .catch(() => {
+        try {
+          const raw = localStorage.getItem(`hunt_applications_${activeUser}`);
+          if (raw) setApplications(JSON.parse(raw));
+        } catch {}
+      });
   };
 
   useEffect(() => {

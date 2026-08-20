@@ -133,12 +133,33 @@ export default function JobDiscoveryPage() {
       const res = await fetch('/api/worker', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'process_single', job: currentJob }),
+        body: JSON.stringify({ action: 'process_single', job: currentJob, userId: activeUserId }),
       });
       const data = await res.json();
       if (data.success) {
         addLog(`[Worker Success] Tailored CV & Cover Letter created for ${currentJob.company}`, 'success');
         setProcessedCount(prev => prev + 1);
+
+        // Save application into client LocalStorage cache for instant /applications page display
+        if (data.application) {
+          try {
+            const existingAppsRaw = localStorage.getItem(`hunt_applications_${activeUserId}`);
+            const existingApps = existingAppsRaw ? JSON.parse(existingAppsRaw) : [];
+            existingApps.unshift(data.application);
+            localStorage.setItem(`hunt_applications_${activeUserId}`, JSON.stringify(existingApps));
+          } catch {}
+        }
+
+        // Save email item into client LocalStorage cache for instant /emails page display
+        if (data.emailItem) {
+          try {
+            const existingEmailsRaw = localStorage.getItem(`hunt_email_queue_${activeUserId}`);
+            const existingEmails = existingEmailsRaw ? JSON.parse(existingEmailsRaw) : [];
+            existingEmails.unshift(data.emailItem);
+            localStorage.setItem(`hunt_email_queue_${activeUserId}`, JSON.stringify(existingEmails));
+          } catch {}
+        }
+
       } else {
         addLog(`[Worker Error] ${data.message || 'Failed processing job'}`, 'error');
       }
@@ -160,7 +181,7 @@ export default function JobDiscoveryPage() {
     fetch('/api/worker', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'toggle', isRunning: nextState }),
+      body: JSON.stringify({ action: 'toggle', isRunning: nextState, userId: activeUserId }),
     }).catch(() => {});
     addLog(`Autonomous worker ${nextState ? 'STARTED' : 'PAUSED'}`, 'info');
   };
@@ -180,7 +201,7 @@ export default function JobDiscoveryPage() {
         await fetch('/api/jobs', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'enqueue', jobs: [finalJob] }),
+          body: JSON.stringify({ action: 'enqueue', jobs: [finalJob], userId: activeUserId }),
         });
       } catch {}
     } else {
@@ -212,7 +233,7 @@ export default function JobDiscoveryPage() {
       await fetch('/api/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'enqueue', jobs: newJobs }),
+        body: JSON.stringify({ action: 'enqueue', jobs: newJobs, userId: activeUserId }),
       });
     } catch {}
 
@@ -226,7 +247,7 @@ export default function JobDiscoveryPage() {
       const res = await fetch('/api/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'import_url', jobUrl: urlInput }),
+        body: JSON.stringify({ action: 'import_url', jobUrl: urlInput, userId: activeUserId }),
       });
       const data = await res.json();
       if (data.job) {
@@ -247,7 +268,7 @@ export default function JobDiscoveryPage() {
       const res = await fetch('/api/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'import_bulk', bulkText: bulkInput }),
+        body: JSON.stringify({ action: 'import_bulk', bulkText: bulkInput, userId: activeUserId }),
       });
       const data = await res.json();
       if (data.count) {

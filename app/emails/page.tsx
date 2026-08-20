@@ -50,16 +50,50 @@ export default function EmailsPage() {
   const [editSenderId, setEditSenderId] = useState('');
 
   const fetchEmailData = () => {
+    let activeUser = 'default_user';
+    try {
+      const stored = localStorage.getItem('hunt_active_user_id');
+      if (stored) activeUser = stored.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+    } catch {}
+
     fetch('/api/emails')
       .then(res => res.json())
       .then(data => {
-        if (data.emailQueue) setEmailQueue(data.emailQueue);
+        let serverQueue: EmailQueueItem[] = data.emailQueue || [];
+        let localQueue: EmailQueueItem[] = [];
+        try {
+          const raw = localStorage.getItem(`hunt_email_queue_${activeUser}`);
+          if (raw) localQueue = JSON.parse(raw);
+        } catch {}
+
+        const queueMap = new Map<string, EmailQueueItem>();
+        serverQueue.forEach(item => queueMap.set(item.id, item));
+        localQueue.forEach(item => {
+          if (!queueMap.has(item.id)) {
+            queueMap.set(item.id, item);
+          }
+        });
+
+        const merged = Array.from(queueMap.values());
+        setEmailQueue(merged);
+
         if (data.activity) {
           setActivity(data.activity);
           setLimitInput(data.activity.dailyEmailLimit || 50);
         }
+        if (data.senderAccounts) {
+          setSenderAccounts(data.senderAccounts);
+        }
+        if (data.activeSenderAccountId) {
+          setActiveSenderId(data.activeSenderAccountId);
+        }
       })
-      .catch(() => {});
+      .catch(() => {
+        try {
+          const raw = localStorage.getItem(`hunt_email_queue_${activeUser}`);
+          if (raw) setEmailQueue(JSON.parse(raw));
+        } catch {}
+      });
 
     fetch('/api/settings')
       .then(res => res.json())
